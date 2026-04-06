@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import authRoutes from './modules/auth/auth.routes';
+import productsRoutes from './modules/products/products.routes';
 
 // Load environment variables
 dotenv.config();
@@ -28,6 +29,7 @@ app.use(cors({
 
 // ── Routes ────────────────────────────────────────
 app.use('/api/auth', authRoutes);
+app.use('/api/products', productsRoutes);
 
 // ─── Health Check Route ───────────────────────
 app.get('/health', (req: Request, res: Response) => {
