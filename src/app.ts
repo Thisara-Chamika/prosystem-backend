@@ -6,6 +6,7 @@ import authRoutes from './modules/auth/auth.routes';
 import productsRoutes from './modules/products/products.routes';
 import posRoutes from './modules/pos/pos.routes';
 import customersRoutes from './modules/customers/customers.routes';
+import { setRlsContext } from './middlewares/rls.middleware';
 
 // Load environment variables
 dotenv.config();
@@ -28,6 +29,10 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 }));
+
+// ── RLS Middleware ────────────────────────────────
+// Runs after auth middleware sets req.user
+app.use(setRlsContext);
 
 // ── Routes ────────────────────────────────────────
 app.use('/api/auth', authRoutes);
