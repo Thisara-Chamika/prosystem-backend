@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1775119252329,
+      "tag": "0000_flawless_shinko_yamashiro",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775504251733,
+      "tag": "0001_acoustic_ben_grimm",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775508190650,
+      "tag": "0002_flaky_firebrand",
+      "breakpoints": true
+    }
+  ]
+}
