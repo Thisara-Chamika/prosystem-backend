@@ -1,7 +1,7 @@
 import { db } from '../../config/database';
 import { products } from '../../db/schema/products';
 import { inventory } from '../../db/schema/inventory';
-import { eq, and, ilike, or } from 'drizzle-orm';
+import { eq, and, ilike, or, asc, desc } from 'drizzle-orm';
 import { NewProduct } from '../../db/schema/products';
 import { ProductFilters } from './products.types';
 
@@ -56,10 +56,26 @@ export class ProductsRepository {
       );
     }
 
+    // ── Sorting ───────────────────────────────────
+    const sortColumn = filters.sort ?? 'createdAt';
+    const sortOrder = filters.order ?? 'desc';
+
+    const columnMap: Record<string, any> = {
+      createdAt: products.createdAt,
+      updatedAt: products.updatedAt,
+      name: products.name,
+      price: products.price,
+      sku: products.sku,
+    };
+
+    const column = columnMap[sortColumn] ?? products.createdAt;
+    const orderBy = sortOrder === 'asc' ? asc(column) : desc(column);
+
     const result = await db
       .select()
       .from(products)
       .where(and(...conditions))
+      .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
 

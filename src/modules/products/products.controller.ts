@@ -37,6 +37,8 @@ export class ProductsController {
         isActive: req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined,
         page: req.query.page ? Number(req.query.page) : 1,
         limit: req.query.limit ? Number(req.query.limit) : 10,
+         sort: req.query.sort as string ?? 'createdAt',        
+  order: (req.query.order as 'asc' | 'desc') ?? 'desc',
       };
 
       const products = await productsService.getProducts(shopId, filters);
