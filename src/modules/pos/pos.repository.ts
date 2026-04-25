@@ -2,7 +2,7 @@ import { db } from '../../config/database';
 import { transactions, transactionItems } from '../../db/schema/transactions';
 import { inventory } from '../../db/schema/inventory';
 import { products } from '../../db/schema/products';
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { NewTransaction, NewTransactionItem } from '../../db/schema/transactions';
 import { TransactionFilters } from './pos.types';
 
@@ -126,6 +126,7 @@ export class PosRepository {
       .select()
       .from(transactions)
       .where(and(...conditions))
+      .orderBy(desc(transactions.createdAt))
       .limit(limit)
       .offset(offset);
   }
