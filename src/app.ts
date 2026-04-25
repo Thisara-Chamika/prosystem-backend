@@ -26,7 +26,12 @@ app.use(helmet());
 
 // CORS - Allow frontend to talk to backend
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: [
+    'http://localhost:5173',          // Vite dev server
+    'http://localhost',               // Nginx (port 80)
+    'http://localhost:80',            // Nginx explicit port
+    process.env.FRONTEND_URL || '',   // From .env
+  ].filter(Boolean),
   credentials: true
 }));
 
