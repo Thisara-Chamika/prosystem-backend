@@ -1,6 +1,6 @@
 import { db } from '../../config/database';
 import { customers } from '../../db/schema/customers';
-import { eq, and, or, ilike } from 'drizzle-orm';
+import { eq, and, or, ilike, desc } from 'drizzle-orm';
 import { NewCustomer } from '../../db/schema/customers';
 import { CustomerFilters } from './customers.types';
 
@@ -37,6 +37,7 @@ export class CustomersRepository {
       .select()
       .from(customers)
       .where(and(...conditions))
+      .orderBy(desc(customers.createdAt))
       .limit(limit)
       .offset(offset);
   }
