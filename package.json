@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "ProSystem - Multi-tenant SaaS POS Platform",
   "main": "dist/server.js",
+
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
@@ -17,7 +21,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "type": "commonjs",
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
