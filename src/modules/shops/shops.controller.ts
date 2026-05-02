@@ -141,4 +141,24 @@ export class ShopsController {
       });
     }
   }
+
+  // POST /api/shops/complete-onboarding
+async completeOnboarding(req: Request, res: Response): Promise<void> {
+  try {
+    const shopId = req.user!.shopId!;
+    const shop = await shopsService.completeOnboarding(shopId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Onboarding completed successfully!',
+      data: shop,
+    });
+
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 }

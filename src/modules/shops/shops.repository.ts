@@ -101,4 +101,18 @@ export class ShopsRepository {
 
     return result[0] ?? null;
   }
+
+  // Complete onboarding
+async completeOnboarding(shopId: string) {
+  const result = await db
+    .update(shops)
+    .set({
+      isOnboarded: true,
+      updatedAt: new Date(),
+    })
+    .where(eq(shops.shopId, shopId))
+    .returning();
+
+  return result[0] ?? null;
+}
 }

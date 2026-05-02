@@ -56,4 +56,11 @@ router.put(
   shopsController.updateSettings.bind(shopsController)
 );
 
+// Complete onboarding (shop_owner only)
+router.post(
+  '/complete-onboarding',
+  authorize('shop_owner'),
+  shopsController.completeOnboarding.bind(shopsController)
+);
+
 export default router;

@@ -175,4 +175,13 @@ export class ShopsService {
 
     return await shopsRepository.getShopById(shopId);
   }
+
+  // Complete onboarding
+async completeOnboarding(shopId: string) {
+  const shop = await shopsRepository.completeOnboarding(shopId);
+  if (!shop) {
+    throw new Error('Shop not found!');
+  }
+  return shop;
+}
 }
