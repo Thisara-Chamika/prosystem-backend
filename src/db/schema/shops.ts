@@ -27,6 +27,10 @@ export const shops = pgTable('shops', {
   isActive: boolean('is_active')
     .default(true),
 
+  isOnboarded: boolean('is_onboarded')
+    .default(false)
+    .notNull(),
+
   createdAt: timestamp('created_at')
     .defaultNow()
     .notNull(),
