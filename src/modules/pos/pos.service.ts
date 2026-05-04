@@ -15,6 +15,7 @@ export class PosService {
   ) {
     // 1. Validate all items and calculate totals
     let subtotal = 0;
+     let totalTax = 0;
     const itemsToCreate = [];
 
     for (const item of input.items) {
@@ -40,9 +41,15 @@ export class PosService {
 
       // Calculate item total
       const unitPrice = parseFloat(product.price);
-      const itemDiscount = item.discount ?? 0;
-      const itemTotal = (unitPrice * item.quantity) - itemDiscount;
-      subtotal += itemTotal;
+const itemDiscount = item.discount ?? 0;
+const itemSubtotal = (unitPrice * item.quantity) - itemDiscount;
+
+// ── Calculate tax per product ──────────────────
+const productTaxRate = parseFloat(product.taxRate ?? '0') / 100;
+const itemTax = itemSubtotal * productTaxRate;
+
+subtotal += itemSubtotal;
+totalTax += itemTax;
 
       itemsToCreate.push({
         shopId,
@@ -52,15 +59,14 @@ export class PosService {
         quantity: item.quantity,
         unitPrice: String(unitPrice),
         discount: String(itemDiscount),
-        total: String(itemTotal),
+        total: String(itemSubtotal),
         transactionId: '',
       });
     }
 
     // 2. Calculate tax and total
     const discount = input.discount ?? 0;
-    const taxRate = 0.08; // 8% tax
-    const tax = (subtotal - discount) * taxRate;
+    const tax = totalTax;  
     const total = subtotal - discount + tax;
 
     // 3. Generate transaction number
