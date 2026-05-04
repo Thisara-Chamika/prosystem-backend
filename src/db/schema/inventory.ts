@@ -31,7 +31,7 @@ export const inventory = pgTable('inventory', {
   reorderQuantity: integer('reorder_quantity')
     .default(0),
 
-  updatedAt: timestamp('updated_at')
+ updatedAt: timestamp('updated_at', { mode: 'date' })
     .defaultNow()
     .notNull(),
 
