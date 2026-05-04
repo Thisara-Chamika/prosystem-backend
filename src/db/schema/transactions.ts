@@ -77,11 +77,11 @@ export const transactions = pgTable('transactions', {
 
   notes: varchar('notes', { length: 500 }),
 
-  createdAt: timestamp('created_at')
+  createdAt: timestamp('created_at', { mode: 'date' })
     .defaultNow()
     .notNull(),
 
-  updatedAt: timestamp('updated_at')
+  updatedAt: timestamp('updated_at', { mode: 'date' })
     .defaultNow()
     .notNull(),
 

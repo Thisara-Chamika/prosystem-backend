@@ -39,15 +39,15 @@ export const users = pgTable('users', {
   isActive: boolean('is_active')
     .default(true),
 
-  lastLogin: timestamp('last_login'),
-
-  createdAt: timestamp('created_at')
+  createdAt: timestamp('created_at', { mode: 'date' })
     .defaultNow()
     .notNull(),
 
-  updatedAt: timestamp('updated_at')
+updatedAt: timestamp('updated_at', { mode: 'date' })
     .defaultNow()
     .notNull(),
+
+lastLogin: timestamp('last_login', { mode: 'date' }),
 });
 
 // TypeScript types

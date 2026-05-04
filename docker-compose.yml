@@ -10,6 +10,8 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+      PGTZ: UTC                 
+      TZ: UTC 
     ports:
       - "5433:5432"
     volumes:
