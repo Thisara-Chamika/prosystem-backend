@@ -15,6 +15,7 @@ export const PLUGINS_BY_BUSINESS: Record<BusinessTemplate, string[]> = {
     'size-variants',
     'color-variants',
     'loyalty-program',
+    'card-payments',
     'online-payments',
   ],
   'salon': [
@@ -22,6 +23,7 @@ export const PLUGINS_BY_BUSINESS: Record<BusinessTemplate, string[]> = {
     'staff-commission',
     'loyalty-program',
     'sms-notifications',
+    'card-payments',
     'online-payments',
   ],
   'restaurant': [
@@ -29,24 +31,28 @@ export const PLUGINS_BY_BUSINESS: Record<BusinessTemplate, string[]> = {
     'kitchen-display',
     'online-ordering',
     'delivery',
+    'card-payments',
     'online-payments',
   ],
   'pharmacy': [
     'barcode-scanner',
     'expiry-tracking',
     'prescription-management',
+    'card-payments',
     'online-payments',
   ],
   'supermarket': [
     'barcode-scanner',
     'weighing-scale',
     'loyalty-program',
+    'card-payments',
     'online-payments',
   ],
   'electronics-shop': [
     'barcode-scanner',
     'warranty-tracking',
     'serial-number-tracking',
+    'card-payments',
     'online-payments',
   ],
 };
