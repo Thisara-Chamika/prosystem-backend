@@ -31,11 +31,11 @@ export const shops = pgTable('shops', {
     .default(false)
     .notNull(),
 
-  createdAt: timestamp('created_at')
+  createdAt: timestamp('created_at', { mode: 'date' })
     .defaultNow()
     .notNull(),
 
-  updatedAt: timestamp('updated_at')
+  updatedAt: timestamp('updated_at', { mode: 'date' })
     .defaultNow()
     .notNull(),
 });
