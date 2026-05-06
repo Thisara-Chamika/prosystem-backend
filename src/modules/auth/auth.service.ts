@@ -77,8 +77,10 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new Error('Invalid email or password');
     }
+    // 3. Update lastLogin
+     await authRepository.updateLastLogin(user.userId);
 
-    // 3. Generate JWT token
+    // 4. Generate JWT token
     const token = this.generateToken({
       userId: user.userId,
       shopId: user.shopId,
@@ -86,7 +88,7 @@ export class AuthService {
       email: user.email,
     });
 
-    // 4. Return response
+    // 5. Return response
     return {
       user: {
         userId: user.userId,
