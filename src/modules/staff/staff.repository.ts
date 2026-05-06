@@ -1,6 +1,6 @@
 import { db } from '../../config/database';
 import { users } from '../../db/schema/users';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, ne } from 'drizzle-orm';
 import { NewUser } from '../../db/schema/users';
 import { StaffFilters } from './staff.types';
 
@@ -13,6 +13,7 @@ export class StaffRepository {
 
     const conditions = [
       eq(users.shopId, shopId),
+      ne(users.role, 'shop_owner' as any),
     ];
 
     if (filters.role) {
