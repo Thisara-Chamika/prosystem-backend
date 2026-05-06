@@ -8,6 +8,7 @@ import posRoutes from './modules/pos/pos.routes';
 import customersRoutes from './modules/customers/customers.routes';
 import { setRlsContext } from './middlewares/rls.middleware';
 import shopsRoutes from './modules/shops/shops.routes';
+import staffRoutes from './modules/staff/staff.routes';
 
 // Load environment variables
 dotenv.config();
@@ -46,7 +47,7 @@ app.use('/api/products', productsRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/pos', posRoutes);
 app.use('/api/shops', shopsRoutes);
-
+app.use('/api/staff', staffRoutes);
 // ─── Health Check Route ───────────────────────
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
