@@ -9,7 +9,8 @@ export const transactionStatusEnum = pgEnum('transaction_status', [
   'pending',
   'completed',
   'cancelled',
-  'refunded'
+  'refunded',
+  'partial_refund'
 ]);
 
 // Payment method enum
