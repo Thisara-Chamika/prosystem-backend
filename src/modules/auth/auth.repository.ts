@@ -64,4 +64,15 @@ export class AuthRepository {
       user: newUser[0]
     };
   }
+
+  // Update last login timestamp
+async updateLastLogin(userId: string) {
+  await db
+    .update(users)
+    .set({
+      lastLogin: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(users.userId, userId));
+}
 }
