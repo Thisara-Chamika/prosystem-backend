@@ -10,12 +10,14 @@ export class ReturnsController {
     try {
       const shopId = req.user!.shopId!;
       const userId = req.user!.userId;
+      const userRole = req.user!.role;
       const { transactionId } = req.params;
 
       const result = await returnsService.createReturn(
         transactionId,
         shopId,
         userId,
+        userRole,
         req.body
       );
 

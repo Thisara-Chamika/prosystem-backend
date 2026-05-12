@@ -1,0 +1,22 @@
+export const AuditAction = {
+  // Auth actions
+  LOGIN: 'LOGIN',
+  LOGOUT: 'LOGOUT',
+
+  // Return actions
+  RETURN_INITIATED: 'RETURN_INITIATED',
+  RETURN_APPROVED: 'RETURN_APPROVED',
+
+  // Staff actions
+  STAFF_CREATED: 'STAFF_CREATED',
+  STAFF_DEACTIVATED: 'STAFF_DEACTIVATED',
+
+  // Future actions (ready to use!)
+  PRODUCT_CREATED: 'PRODUCT_CREATED',
+  PRODUCT_DELETED: 'PRODUCT_DELETED',
+  TRANSACTION_CREATED: 'TRANSACTION_CREATED',
+  TRANSACTION_CANCELLED: 'TRANSACTION_CANCELLED',
+  SETTINGS_UPDATED: 'SETTINGS_UPDATED',
+} as const;
+
+export type AuditActionType = typeof AuditAction[keyof typeof AuditAction];

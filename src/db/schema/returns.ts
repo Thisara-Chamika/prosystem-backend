@@ -30,6 +30,9 @@ export const returns = pgTable('returns', {
     .notNull()
     .references(() => users.userId),
 
+  approvedBy: uuid('approved_by')
+    .references(() => users.userId),
+
   reason: varchar('reason', { length: 500 }),
 
   refundMethod: refundMethodEnum('refund_method')

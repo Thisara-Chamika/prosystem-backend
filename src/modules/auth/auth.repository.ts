@@ -1,7 +1,7 @@
 import { db } from '../../config/database';
 import { shops } from '../../db/schema/shops';
 import { users } from '../../db/schema/users';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { NewShop } from '../../db/schema/shops';
 import { NewUser } from '../../db/schema/users';
 
@@ -74,5 +74,41 @@ async updateLastLogin(userId: string) {
       updatedAt: new Date(),
     })
     .where(eq(users.userId, userId));
+}
+
+// Set manager PIN
+async setManagerPin(userId: string, pinHash: string) {
+  await db
+    .update(users)
+    .set({
+      managerPin: pinHash,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.userId, userId));
+}
+
+// Get all active managers and owners for a shop
+async getShopManagers(shopId: string) {
+  const result = await db
+    .select({
+      userId: users.userId,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email,
+      role: users.role,
+      managerPin: users.managerPin,
+    })
+    .from(users)
+    .where(
+      and(
+        eq(users.shopId, shopId),
+        eq(users.isActive, true),
+      )
+    );
+
+  // Filter only managers and owners
+  return result.filter(u =>
+    u.role === 'shop_owner' || u.role === 'shop_manager'
+  );
 }
 }

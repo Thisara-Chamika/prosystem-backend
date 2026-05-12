@@ -9,4 +9,5 @@ export interface CreateReturnInput {
   items: ReturnItemInput[];
   reason?: string;
   refundMethod: 'cash' | 'card' | 'store_credit';
+  approvedBy?: string;
 }

@@ -61,4 +61,67 @@ export class AuthController {
       });
     }
   }
+
+  // POST /api/auth/set-manager-pin
+async setManagerPin(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.user!.userId;
+    const { pin } = req.body;
+
+    const result = await authService.setManagerPin(userId, pin);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
+// POST /api/auth/verify-manager-pin
+async verifyManagerPin(req: Request, res: Response): Promise<void> {
+  try {
+    const shopId = req.user!.shopId!;
+    const { pin } = req.body;
+
+    const manager = await authService.verifyManagerPin(shopId, pin);
+
+    res.status(200).json({
+      success: true,
+      message: 'PIN verified successfully!',
+      data: manager,
+    });
+
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
+// GET /api/auth/managers
+async getShopManagers(req: Request, res: Response): Promise<void> {
+  try {
+    const shopId = req.user!.shopId!;
+
+    const managers = await authService.getShopManagers(shopId);
+
+    res.status(200).json({
+      success: true,
+      data: managers,
+    });
+
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 }

@@ -1,5 +1,7 @@
 import { ReturnsRepository } from './returns.repository';
 import { CreateReturnInput } from './returns.types';
+import { createAuditLog } from '../../utils/audit.utils';
+import { AuditAction } from '../../enums/audit-actions.enum';
 
 const returnsRepository = new ReturnsRepository();
 
@@ -9,6 +11,7 @@ export class ReturnsService {
     transactionId: string,
     shopId: string,
     userId: string,
+    userRole: string,
     input: CreateReturnInput
   ) {
     // 1. Get original transaction
@@ -19,36 +22,41 @@ export class ReturnsService {
       throw new Error('Transaction not found!');
     }
 
-    // 2. Only completed transactions can be returned
+    // 2. Only completed or partial_refund transactions
     const allowedStatuses = ['completed', 'partial_refund'];
     if (!allowedStatuses.includes(transaction.status as string)) {
-        throw new Error(
+      throw new Error(
         `Cannot return a ${transaction.status} transaction!`
-        );
+      );
     }
 
-    // 3. Get already returned quantities
+    // 3. Cashier MUST provide approvedBy
+    if (userRole === 'cashier') {
+      if (!input.approvedBy) {
+        throw new Error(
+          'Manager approval is required for cashier returns!'
+        );
+      }
+    }
+
+    // 4. Get already returned quantities
     const alreadyReturned = await returnsRepository
       .getReturnedQuantities(transactionId);
 
-    // 4. Validate each return item
+    // 5. Validate each return item
     let totalRefund = 0;
     const itemsToReturn = [];
 
     for (const returnItem of input.items) {
-      // Find item in original transaction
       const originalItem = transaction.items.find(
         i => i.itemId === returnItem.transactionItemId &&
              i.productId === returnItem.productId
       );
 
       if (!originalItem) {
-        throw new Error(
-          `Item not found in original transaction!`
-        );
+        throw new Error('Item not found in original transaction!');
       }
 
-      // Check how many already returned
       const previouslyReturned =
         alreadyReturned[returnItem.transactionItemId] ?? 0;
 
@@ -57,12 +65,12 @@ export class ReturnsService {
 
       if (returnItem.quantity > availableToReturn) {
         throw new Error(
-          `Cannot return ${returnItem.quantity} of ${originalItem.productName}! ` +
+          `Cannot return ${returnItem.quantity} of ` +
+          `${originalItem.productName}! ` +
           `Available to return: ${availableToReturn}`
         );
       }
 
-      // Calculate refund amount
       const unitPrice = parseFloat(originalItem.unitPrice);
       const itemRefund = unitPrice * returnItem.quantity;
       totalRefund += itemRefund;
@@ -79,21 +87,22 @@ export class ReturnsService {
       });
     }
 
-    // 5. Restore inventory for returned items
-    for (let i = 0; i < input.items.length; i++) {
+    // 6. Restore inventory
+    for (const item of input.items) {
       await returnsRepository.restoreInventory(
-        input.items[i].productId,
+        item.productId,
         shopId,
-        input.items[i].quantity
+        item.quantity
       );
     }
 
-    // 6. Create return record
+    // 7. Create return record
     const result = await returnsRepository.createReturn(
       {
         shopId,
         transactionId,
         returnedBy: userId,
+        approvedBy: input.approvedBy ?? null,
         reason: input.reason,
         refundMethod: input.refundMethod,
         totalRefund: String(totalRefund.toFixed(2)),
@@ -102,35 +111,65 @@ export class ReturnsService {
       itemsToReturn
     );
 
-    // 7. Determine new transaction status
-    const allItems = transaction.items;
+    // 8. Determine new transaction status
     const updatedReturned = { ...alreadyReturned };
-
     for (const item of input.items) {
       updatedReturned[item.transactionItemId] =
         (updatedReturned[item.transactionItemId] ?? 0) +
         item.quantity;
     }
 
-    // Check if ALL items fully returned
-    const fullyReturned = allItems.every(item => {
+    const fullyReturned = transaction.items.every(item => {
       const returned = updatedReturned[item.itemId] ?? 0;
       return returned >= item.quantity;
     });
 
     const newStatus = fullyReturned ? 'refunded' : 'partial_refund';
 
-    // 8. Update transaction status
     await returnsRepository.updateTransactionStatus(
       transactionId,
       newStatus
     );
+
+    // 9. Audit logs ─────────────────────────────────
+    // Log return initiated by cashier/manager
+    await createAuditLog({
+      shopId,
+      userId,
+      action: AuditAction.RETURN_INITIATED,
+      entityType: 'return',
+      entityId: result.return.returnId,
+      details: {
+        transactionId,
+        totalRefund: totalRefund.toFixed(2),
+        refundMethod: input.refundMethod,
+        itemCount: input.items.length,
+        initiatedByRole: userRole,
+      },
+    });
+
+    // Log manager approval if applicable
+    if (input.approvedBy) {
+      await createAuditLog({
+        shopId,
+        userId: input.approvedBy,
+        action: AuditAction.RETURN_APPROVED,
+        entityType: 'return',
+        entityId: result.return.returnId,
+        details: {
+          transactionId,
+          totalRefund: totalRefund.toFixed(2),
+          approvedFor: userId,
+        },
+      });
+    }
 
     return {
       ...result,
       transactionStatus: newStatus,
       totalRefund: totalRefund.toFixed(2),
       refundMethod: input.refundMethod,
+      approvedBy: input.approvedBy ?? null,
     };
   }
 }

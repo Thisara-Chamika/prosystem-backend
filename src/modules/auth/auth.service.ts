@@ -111,6 +111,64 @@ export class AuthService {
     return user;
   }
 
+  // Set manager PIN
+async setManagerPin(userId: string, pin: string) {
+  // Validate PIN is 4 digits
+  if (!/^\d{4}$/.test(pin)) {
+    throw new Error('PIN must be exactly 4 digits!');
+  }
+
+  // Hash the PIN
+  const pinHash = await bcrypt.hash(pin, SALT_ROUNDS);
+
+  await authRepository.setManagerPin(userId, pinHash);
+
+  return { message: 'Manager PIN set successfully!' };
+}
+
+// Verify manager PIN
+async verifyManagerPin(shopId: string, pin: string) {
+  // Get all managers for this shop
+  const managers = await authRepository.getShopManagers(shopId);
+
+  if (managers.length === 0) {
+    throw new Error('No managers found for this shop!');
+  }
+
+  // Check PIN against each manager
+  for (const manager of managers) {
+    if (!manager.managerPin) continue;
+
+    const isValid = await bcrypt.compare(pin, manager.managerPin);
+    if (isValid) {
+      return {
+        userId: manager.userId,
+        firstName: manager.firstName,
+        lastName: manager.lastName,
+        email: manager.email,
+        role: manager.role,
+      };
+    }
+  }
+
+  throw new Error('Invalid PIN!');
+}
+
+// Get shop managers (for dropdown fallback)
+async getShopManagers(shopId: string) {
+  const managers = await authRepository.getShopManagers(shopId);
+
+  // Never return PIN hash!
+  return managers.map(m => ({
+    userId: m.userId,
+    firstName: m.firstName,
+    lastName: m.lastName,
+    email: m.email,
+    role: m.role,
+    hasPin: !!m.managerPin, // just tell frontend if PIN exists
+  }));
+}
+
   // ── GENERATE JWT TOKEN ──
   private generateToken(payload: JwtPayload): string {
     return jwt.sign(

@@ -11,7 +11,7 @@ router.use(authenticate);
 // POST /api/transactions/:transactionId/return
 router.post(
   '/',
-  authorize('shop_owner', 'shop_manager'),
+  authorize('shop_owner', 'shop_manager', 'cashier'),
   returnsController.createReturn.bind(returnsController)
 );
 
