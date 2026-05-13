@@ -139,4 +139,25 @@ totalTax += itemTax;
       userId
     );
   }
+
+  //Return lookup for transactions and customers
+  async returnLookup(shopId: string, search: string) {
+  if (!search || search.trim().length < 2) {
+    throw new Error('Search term must be at least 2 characters!');
+  }
+
+  const results = await posRepository.returnLookup(
+    shopId,
+    search.trim()
+  );
+
+  return {
+    searchType: search.toUpperCase().startsWith('TXN-')
+      ? 'transaction_number'
+      : /^\d{10,}$/.test(search)
+      ? 'phone'
+      : 'customer_name',
+    results,
+  };
+}
 }
