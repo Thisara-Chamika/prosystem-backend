@@ -36,6 +36,8 @@ export const users = pgTable('users', {
 
   phone: varchar('phone', { length: 20 }),
 
+  managerPin: varchar('manager_pin', { length: 255 }),
+
   isActive: boolean('is_active')
     .default(true),
 
@@ -43,11 +45,11 @@ export const users = pgTable('users', {
     .defaultNow()
     .notNull(),
 
-updatedAt: timestamp('updated_at', { mode: 'date' })
+  updatedAt: timestamp('updated_at', { mode: 'date' })
     .defaultNow()
     .notNull(),
 
-lastLogin: timestamp('last_login', { mode: 'date' }),
+  lastLogin: timestamp('last_login', { mode: 'date' }),
 });
 
 // TypeScript types

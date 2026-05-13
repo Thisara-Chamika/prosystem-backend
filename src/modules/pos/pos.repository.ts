@@ -110,6 +110,10 @@ export class PosRepository {
       conditions.push(eq(transactions.status, filters.status as any));
     }
 
+    if (filters.paymentMethod) {
+      conditions.push(eq(transactions.paymentMethod, filters.paymentMethod as any));
+    }
+
     if (filters.customerId) {
       conditions.push(eq(transactions.customerId, filters.customerId));
     }
