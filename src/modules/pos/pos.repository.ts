@@ -5,6 +5,7 @@ import { products } from '../../db/schema/products';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { NewTransaction, NewTransactionItem } from '../../db/schema/transactions';
 import { TransactionFilters } from './pos.types';
+import { returns, returnItems } from '../../db/schema/returns';
 
 export class PosRepository {
 
@@ -137,6 +138,7 @@ export class PosRepository {
 
   // Get single transaction with items
   async getTransactionById(transactionId: string, shopId: string) {
+    // 1. Get transaction
     const transaction = await db
       .select()
       .from(transactions)
@@ -150,14 +152,70 @@ export class PosRepository {
 
     if (!transaction[0]) return null;
 
+    // 2. Get transaction items
     const items = await db
       .select()
       .from(transactionItems)
       .where(eq(transactionItems.transactionId, transactionId));
 
+    // 3. Get all returns for this transaction
+    const transactionReturns = await db
+      .select()
+      .from(returns)
+      .where(eq(returns.transactionId, transactionId));
+
+    // 4. Get return items for each return
+    const returnsWithItems = await Promise.all(
+      transactionReturns.map(async (r) => {
+        const rItems = await db
+          .select()
+          .from(returnItems)
+          .where(eq(returnItems.returnId, r.returnId));
+
+        return {
+          returnId: r.returnId,
+          reason: r.reason,
+          refundMethod: r.refundMethod,
+          totalRefund: r.totalRefund,
+          createdAt: r.createdAt,
+          returnedBy: r.returnedBy,
+          approvedBy: r.approvedBy,
+          items: rItems.map(ri => ({
+            returnItemId: ri.returnItemId,
+            productId: ri.productId,
+            transactionItemId: ri.transactionItemId,
+            quantity: ri.quantity,
+            unitPrice: ri.unitPrice,
+            total: ri.total,
+            reason: ri.reason,
+          })),
+        };
+      })
+    );
+
+    // 5. Calculate returnedQuantity per transaction item
+    const returnedQuantityMap: Record<string, number> = {};
+
+    for (const r of returnsWithItems) {
+      for (const ri of r.items) {
+        const key = ri.transactionItemId;
+        returnedQuantityMap[key] =
+          (returnedQuantityMap[key] ?? 0) + ri.quantity;
+      }
+    }
+
+    // 6. Enhance items with return info
+    const enhancedItems = items.map(item => ({
+      ...item,
+      returnedQuantity: returnedQuantityMap[item.itemId] ?? 0,
+      availableToReturn:
+        item.quantity - (returnedQuantityMap[item.itemId] ?? 0),
+    }));
+
     return {
       ...transaction[0],
-      items,
+      items: enhancedItems,
+      returns: returnsWithItems,
     };
   }
 
