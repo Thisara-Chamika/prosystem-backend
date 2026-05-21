@@ -128,6 +128,10 @@ export class PosRepository {
       conditions.push(lte(transactions.createdAt, new Date(filters.toDate)));
     }
 
+    if (filters.cashierId) {
+    conditions.push(eq(transactions.cashierId, filters.cashierId));
+    }
+
     return await db
       .select()
       .from(transactions)

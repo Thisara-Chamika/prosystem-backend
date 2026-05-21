@@ -20,4 +20,5 @@ export interface TransactionFilters {
   toDate?: string;
   page?: number;
   limit?: number;
+  cashierId?: string; 
 }
