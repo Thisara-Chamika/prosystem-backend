@@ -35,6 +35,9 @@ export class PosController {
   async getTransactions(req: Request, res: Response): Promise<void> {
     try {
       const shopId = req.user!.shopId!;
+      const userRole = req.user!.role;
+      const userId = req.user!.userId;
+
       const filters = {
         status: req.query.status as string,
         paymentMethod: req.query.paymentMethod as string,
@@ -43,6 +46,8 @@ export class PosController {
         toDate: req.query.toDate as string,
         page: req.query.page ? Number(req.query.page) : 1,
         limit: req.query.limit ? Number(req.query.limit) : 10,
+        // ── Cashier sees only their own! ──────────
+        cashierId: userRole === 'cashier' ? userId : undefined,
       };
 
       const transactions = await posService.getTransactions(shopId, filters);
