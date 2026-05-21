@@ -12,7 +12,6 @@ router.use(authenticate);
 // Get all transactions
 router.get(
   '/',
-  authorize('shop_owner', 'shop_manager'),
   posController.getTransactions.bind(posController)
 );
 
