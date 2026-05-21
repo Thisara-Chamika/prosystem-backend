@@ -2,10 +2,11 @@ import { db } from '../../config/database';
 import { transactions, transactionItems } from '../../db/schema/transactions';
 import { inventory } from '../../db/schema/inventory';
 import { products } from '../../db/schema/products';
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, ilike, or } from 'drizzle-orm';
 import { NewTransaction, NewTransactionItem } from '../../db/schema/transactions';
 import { TransactionFilters } from './pos.types';
 import { returns, returnItems } from '../../db/schema/returns';
+import { customers } from '../../db/schema/customers';
 
 export class PosRepository {
 
@@ -243,4 +244,104 @@ export class PosRepository {
 
     return result[0] ?? null;
   }
+
+  // Return Lookup for returns based on transaction number, customer phone, or customer name
+
+  async returnLookup(shopId: string, search: string) {
+  // Detect search type
+  const isTxnNumber = search.toUpperCase().startsWith('TXN-');
+  const isPhone = /^\d{10,}$/.test(search);
+
+  if (isTxnNumber) {
+    // Search by transaction number
+    const result = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.shopId, shopId),
+          eq(transactions.transactionNumber, search.toUpperCase())
+        )
+      )
+      .limit(1);
+
+    return result;
+  }
+
+  if (isPhone) {
+    // Search by customer phone
+    const customerResults = await db
+      .select()
+      .from(customers)
+      .where(
+        and(
+          eq(customers.shopId, shopId),
+          ilike(customers.phone, `%${search}%`)
+        )
+      )
+      .limit(5);
+
+    if (customerResults.length === 0) return [];
+
+    // Get transactions for found customers
+    const customerIds = customerResults.map(c => c.customerId);
+    const txnResults = [];
+
+    for (const customerId of customerIds) {
+      const txns = await db
+        .select()
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.shopId, shopId),
+            eq(transactions.customerId, customerId)
+          )
+        )
+        .orderBy(desc(transactions.createdAt))
+        .limit(5);
+
+      txnResults.push(...txns);
+    }
+
+    return txnResults;
+  }
+
+  // Search by customer name
+  const customerResults = await db
+    .select()
+    .from(customers)
+    .where(
+      and(
+        eq(customers.shopId, shopId),
+        or(
+          ilike(customers.firstName, `%${search}%`),
+          ilike(customers.lastName, `%${search}%`)
+        )
+      )
+    )
+    .limit(5);
+
+  if (customerResults.length === 0) return [];
+
+  const customerIds = customerResults.map(c => c.customerId);
+  const txnResults = [];
+
+  for (const customerId of customerIds) {
+    const txns = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.shopId, shopId),
+          eq(transactions.customerId, customerId)
+        )
+      )
+      .orderBy(desc(transactions.createdAt))
+      .limit(5);
+
+    txnResults.push(...txns);
+  }
+
+  return txnResults;
+}
 }

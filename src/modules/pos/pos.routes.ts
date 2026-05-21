@@ -16,6 +16,13 @@ router.get(
   posController.getTransactions.bind(posController)
 );
 
+// GET /api/pos/return-lookup
+router.get(
+  '/return-lookup',
+  authorize('shop_owner', 'shop_manager', 'cashier'),
+  posController.returnLookup.bind(posController)
+);
+
 // Get single transaction
 router.get(
   '/:transactionId',

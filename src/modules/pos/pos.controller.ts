@@ -114,4 +114,33 @@ export class PosController {
       });
     }
   }
+
+  // GET /api/pos/return-lookup
+async returnLookup(req: Request, res: Response): Promise<void> {
+  try {
+    const shopId = req.user!.shopId!;
+    const search = req.query.search as string;
+
+    if (!search) {
+      res.status(400).json({
+        success: false,
+        message: 'Search parameter is required!',
+      });
+      return;
+    }
+
+    const result = await posService.returnLookup(shopId, search);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 }
