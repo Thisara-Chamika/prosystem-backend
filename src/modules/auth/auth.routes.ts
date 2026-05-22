@@ -35,4 +35,29 @@ router.get(
   authController.getShopManagers.bind(authController)
 );
 
+// ── Profile routes ────────────────────────────────
+// Update own profile (all roles)
+router.put(
+  '/profile',
+  authenticate,
+  authController.updateProfile.bind(authController)
+);
+
+// Change own password (all roles)
+router.put(
+  '/password',
+  authenticate,
+  authController.changePassword.bind(authController)
+);
+
+// Set/update manager PIN (owner + manager only)
+// Already exists as POST /set-manager-pin
+// Add PUT alias for consistency:
+router.put(
+  '/manager-pin',
+  authenticate,
+  authorize('shop_owner', 'shop_manager'),
+  authController.setManagerPin.bind(authController)
+);
+
 export default router;
