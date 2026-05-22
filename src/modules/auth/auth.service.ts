@@ -182,4 +182,62 @@ async getShopManagers(shopId: string) {
   verifyToken(token: string): JwtPayload {
     return jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
   }
+
+  // Update profile
+async updateProfile(userId: string, input: {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}) {
+  // Only update provided fields
+  const updateData: any = {};
+  if (input.firstName) updateData.firstName = input.firstName;
+  if (input.lastName) updateData.lastName = input.lastName;
+  if (input.phone !== undefined) updateData.phone = input.phone;
+
+  if (Object.keys(updateData).length === 0) {
+    throw new Error('No fields provided to update!');
+  }
+
+  const updated = await authRepository.updateProfile(userId, updateData);
+  if (!updated) {
+    throw new Error('User not found!');
+  }
+
+  return updated;
+}
+
+// Change password
+async changePassword(userId: string, input: {
+  currentPassword: string;
+  newPassword: string;
+}) {
+  // 1. Validate new password length
+  if (input.newPassword.length < 8) {
+    throw new Error('New password must be at least 8 characters!');
+  }
+
+  // 2. Get user with password hash
+  const user = await authRepository.getUserWithPassword(userId);
+  if (!user) {
+    throw new Error('User not found!');
+  }
+
+  // 3. Verify current password
+  const isValid = await bcrypt.compare(
+    input.currentPassword,
+    user.passwordHash
+  );
+  if (!isValid) {
+    throw new Error('Current password is incorrect!');
+  }
+
+  // 4. Hash new password
+  const newHash = await bcrypt.hash(input.newPassword, SALT_ROUNDS);
+
+  // 5. Save new password
+  await authRepository.updatePassword(userId, newHash);
+
+  return { message: 'Password changed successfully!' };
+}
 }

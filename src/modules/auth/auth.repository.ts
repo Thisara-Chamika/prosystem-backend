@@ -111,4 +111,55 @@ async getShopManagers(shopId: string) {
     u.role === 'shop_owner' || u.role === 'shop_manager'
   );
 }
+
+// Update user profile
+async updateProfile(userId: string, data: {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}) {
+  const result = await db
+    .update(users)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.userId, userId))
+    .returning({
+      userId: users.userId,
+      shopId: users.shopId,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email,
+      role: users.role,
+      phone: users.phone,
+      isActive: users.isActive,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+    });
+
+  return result[0] ?? null;
+}
+
+// Get user with password hash (for verification)
+async getUserWithPassword(userId: string) {
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.userId, userId))
+    .limit(1);
+
+  return result[0] ?? null;
+}
+
+// Update password
+async updatePassword(userId: string, passwordHash: string) {
+  await db
+    .update(users)
+    .set({
+      passwordHash,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.userId, userId));
+}
 }

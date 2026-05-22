@@ -124,4 +124,50 @@ async getShopManagers(req: Request, res: Response): Promise<void> {
     });
   }
 }
+
+// PUT /api/auth/profile
+async updateProfile(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.user!.userId;
+    const { firstName, lastName, phone } = req.body;
+
+    const updated = await authService.updateProfile(userId, {
+      firstName,
+      lastName,
+      phone,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully!',
+      data: updated,
+    });
+
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
+// PUT /api/auth/password
+async changePassword(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.user!.userId;
+
+    const result = await authService.changePassword(userId, req.body);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 }
