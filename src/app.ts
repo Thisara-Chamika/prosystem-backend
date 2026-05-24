@@ -11,6 +11,7 @@ import shopsRoutes from './modules/shops/shops.routes';
 import staffRoutes from './modules/staff/staff.routes';
 import returnsRoutes from './modules/returns/returns.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
+import reportsRoutes from './modules/reports/reports.routes';
 
 // Load environment variables
 dotenv.config();
@@ -52,6 +53,7 @@ app.use('/api/shops', shopsRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/transactions/:transactionId/return', returnsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/reports', reportsRoutes);
 // ─── Health Check Route ───────────────────────
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
