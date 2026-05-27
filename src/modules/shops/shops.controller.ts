@@ -126,7 +126,8 @@ export class ShopsController {
   async updateSettings(req: Request, res: Response): Promise<void> {
     try {
       const shopId = req.user!.shopId!;
-      const shop = await shopsService.updateSettings(shopId, req.body);
+      const userId = req.user!.userId; 
+      const shop = await shopsService.updateSettings(shopId, req.body, userId);
 
       res.status(200).json({
         success: true,

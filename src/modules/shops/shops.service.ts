@@ -10,12 +10,13 @@ import {
   PLUGINS_BY_BUSINESS,
   BusinessTemplate
 } from '../../enums/plugins.enum';
+import { createAuditLog } from '../../utils/audit.utils';
+import { AuditAction } from '../../enums/audit-actions.enum';
 
 const shopsRepository = new ShopsRepository();
 
 export class ShopsService {
 
-  // Get current shop
   async getMyShop(shopId: string) {
     const shop = await shopsRepository.getShopById(shopId);
     if (!shop) {
@@ -24,9 +25,7 @@ export class ShopsService {
     return shop;
   }
 
-  // Update business type
   async updateBusinessType(shopId: string, input: UpdateBusinessTypeInput) {
-    // Validate business type exists
     if (!BUSINESS_TEMPLATES.includes(input.businessType as BusinessTemplate)) {
       throw new Error(
         `Invalid business type! Valid types: ${BUSINESS_TEMPLATES.join(', ')}`
@@ -45,7 +44,6 @@ export class ShopsService {
     return shop;
   }
 
-  // Get available plugins for shop's business type
   async getAvailablePlugins(shopId: string) {
     const shop = await shopsRepository.getShopById(shopId);
     if (!shop) {
@@ -54,7 +52,6 @@ export class ShopsService {
 
     const activePlugins = (shop.activePlugins as string[]) ?? [];
 
-    // Find business template from active plugins
     const businessTemplate = activePlugins.find(p =>
       BUSINESS_TEMPLATES.includes(p as BusinessTemplate)
     ) as BusinessTemplate | undefined;
@@ -77,7 +74,6 @@ export class ShopsService {
     };
   }
 
-  // Update plugin (add or remove)
   async updatePlugin(shopId: string, input: UpdatePluginInput) {
     const shop = await shopsRepository.getShopById(shopId);
     if (!shop) {
@@ -86,7 +82,6 @@ export class ShopsService {
 
     const activePlugins = (shop.activePlugins as string[]) ?? [];
 
-    // Find business template
     const businessTemplate = activePlugins.find(p =>
       BUSINESS_TEMPLATES.includes(p as BusinessTemplate)
     ) as BusinessTemplate | undefined;
@@ -95,7 +90,6 @@ export class ShopsService {
       throw new Error('Please select a business type first!');
     }
 
-    // Validate plugin belongs to their business type
     const availablePlugins = PLUGINS_BY_BUSINESS[businessTemplate] ?? [];
     if (!availablePlugins.includes(input.plugin)) {
       throw new Error(
@@ -103,48 +97,38 @@ export class ShopsService {
       );
     }
 
-    // Cannot remove business template via this endpoint
     if (BUSINESS_TEMPLATES.includes(input.plugin as BusinessTemplate)) {
-      throw new Error('Cannot remove business template via this endpoint. Use PUT /api/shops/business-type instead!');
+      throw new Error('Cannot remove business template via this endpoint!');
     }
 
-    const updated = await shopsRepository.updatePlugin(
+    return await shopsRepository.updatePlugin(
       shopId,
       input.plugin,
       input.action
     );
-
-    return updated;
   }
 
-  // Update configuration
   async updateConfiguration(shopId: string, input: UpdateConfigurationInput) {
     const config: Record<string, any> = {};
-
     if (input.primaryColor) config.primaryColor = input.primaryColor;
     if (input.logoUrl) config.logoUrl = input.logoUrl;
 
-    // Update shop table directly for currency, timezone, name
     const settings: Record<string, any> = {};
     if (input.currency) settings.currency = input.currency;
     if (input.timezone) settings.timezone = input.timezone;
     if (input.shopName) settings.name = input.shopName;
 
-    // Update configuration JSONB
     if (Object.keys(config).length > 0) {
       await shopsRepository.updateConfiguration(shopId, config);
     }
 
-    // Update shop settings
     if (Object.keys(settings).length > 0) {
       await shopsRepository.updateSettings(shopId, settings);
     }
 
-    // Return updated shop
     return await shopsRepository.getShopById(shopId);
   }
 
-  // Get shop settings
   async getSettings(shopId: string) {
     const shop = await shopsRepository.getShopById(shopId);
     if (!shop) {
@@ -153,35 +137,70 @@ export class ShopsService {
     return shop;
   }
 
-  // Update shop settings
-  async updateSettings(shopId: string, input: ShopSettings) {
-    const settings: Record<string, any> = {};
+  async updateSettings(shopId: string, input: ShopSettings, userId: string) {
+    const currentShop = await shopsRepository.getShopById(shopId);
+    if (!currentShop) {
+      throw new Error('Shop not found!');
+    }
 
+    const settings: Record<string, any> = {};
     if (input.shopName) settings.name = input.shopName;
     if (input.currency) settings.currency = input.currency;
     if (input.timezone) settings.timezone = input.timezone;
 
-    const config: Record<string, any> = {};
-    if (input.primaryColor) config.primaryColor = input.primaryColor;
-    if (input.logoUrl) config.logoUrl = input.logoUrl;
+    const configUpdate: Record<string, any> = {};
+    if (input.configuration) {
+      if (input.configuration.primaryColor !== undefined)
+        configUpdate.primaryColor = input.configuration.primaryColor;
+      if (input.configuration.logoUrl !== undefined)
+        configUpdate.logoUrl = input.configuration.logoUrl;
+    } else {
+      if (input.primaryColor !== undefined)
+        configUpdate.primaryColor = input.primaryColor;
+      if (input.logoUrl !== undefined)
+        configUpdate.logoUrl = input.logoUrl;
+    }
 
     if (Object.keys(settings).length > 0) {
       await shopsRepository.updateSettings(shopId, settings);
     }
 
-    if (Object.keys(config).length > 0) {
-      await shopsRepository.updateConfiguration(shopId, config);
+    if (Object.keys(configUpdate).length > 0) {
+      await shopsRepository.updateConfiguration(shopId, configUpdate);
     }
 
-    return await shopsRepository.getShopById(shopId);
+    const updatedShop = await shopsRepository.getShopById(shopId);
+
+    await createAuditLog({
+      shopId,
+      userId,
+      action: AuditAction.SETTINGS_UPDATED,
+      entityType: 'shop',
+      entityId: shopId,
+      details: {
+        oldValues: {
+          name: currentShop.name,
+          currency: currentShop.currency,
+          timezone: currentShop.timezone,
+          configuration: currentShop.configuration,
+        },
+        newValues: {
+          name: updatedShop?.name,
+          currency: updatedShop?.currency,
+          timezone: updatedShop?.timezone,
+          configuration: updatedShop?.configuration,
+        },
+      },
+    });
+
+    return updatedShop;
   }
 
-  // Complete onboarding
-async completeOnboarding(shopId: string) {
-  const shop = await shopsRepository.completeOnboarding(shopId);
-  if (!shop) {
-    throw new Error('Shop not found!');
+  async completeOnboarding(shopId: string) {
+    const shop = await shopsRepository.completeOnboarding(shopId);
+    if (!shop) {
+      throw new Error('Shop not found!');
+    }
+    return shop;
   }
-  return shop;
-}
 }

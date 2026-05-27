@@ -24,6 +24,7 @@ router.get(
 // Get shop settings
 router.get(
   '/settings',
+  authorize('shop_owner'),
   shopsController.getSettings.bind(shopsController)
 );
 

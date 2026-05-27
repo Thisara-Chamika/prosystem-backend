@@ -2,9 +2,11 @@ import { db } from '../../config/database';
 import { transactions, transactionItems } from '../../db/schema/transactions';
 import { inventory } from '../../db/schema/inventory';
 import { products } from '../../db/schema/products';
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, ilike, or } from 'drizzle-orm';
 import { NewTransaction, NewTransactionItem } from '../../db/schema/transactions';
 import { TransactionFilters } from './pos.types';
+import { returns, returnItems } from '../../db/schema/returns';
+import { customers } from '../../db/schema/customers';
 
 export class PosRepository {
 
@@ -110,6 +112,10 @@ export class PosRepository {
       conditions.push(eq(transactions.status, filters.status as any));
     }
 
+    if (filters.paymentMethod) {
+      conditions.push(eq(transactions.paymentMethod, filters.paymentMethod as any));
+    }
+
     if (filters.customerId) {
       conditions.push(eq(transactions.customerId, filters.customerId));
     }
@@ -120,6 +126,10 @@ export class PosRepository {
 
     if (filters.toDate) {
       conditions.push(lte(transactions.createdAt, new Date(filters.toDate)));
+    }
+
+    if (filters.cashierId) {
+    conditions.push(eq(transactions.cashierId, filters.cashierId));
     }
 
     return await db
@@ -133,6 +143,7 @@ export class PosRepository {
 
   // Get single transaction with items
   async getTransactionById(transactionId: string, shopId: string) {
+    // 1. Get transaction
     const transaction = await db
       .select()
       .from(transactions)
@@ -146,14 +157,70 @@ export class PosRepository {
 
     if (!transaction[0]) return null;
 
+    // 2. Get transaction items
     const items = await db
       .select()
       .from(transactionItems)
       .where(eq(transactionItems.transactionId, transactionId));
 
+    // 3. Get all returns for this transaction
+    const transactionReturns = await db
+      .select()
+      .from(returns)
+      .where(eq(returns.transactionId, transactionId));
+
+    // 4. Get return items for each return
+    const returnsWithItems = await Promise.all(
+      transactionReturns.map(async (r) => {
+        const rItems = await db
+          .select()
+          .from(returnItems)
+          .where(eq(returnItems.returnId, r.returnId));
+
+        return {
+          returnId: r.returnId,
+          reason: r.reason,
+          refundMethod: r.refundMethod,
+          totalRefund: r.totalRefund,
+          createdAt: r.createdAt,
+          returnedBy: r.returnedBy,
+          approvedBy: r.approvedBy,
+          items: rItems.map(ri => ({
+            returnItemId: ri.returnItemId,
+            productId: ri.productId,
+            transactionItemId: ri.transactionItemId,
+            quantity: ri.quantity,
+            unitPrice: ri.unitPrice,
+            total: ri.total,
+            reason: ri.reason,
+          })),
+        };
+      })
+    );
+
+    // 5. Calculate returnedQuantity per transaction item
+    const returnedQuantityMap: Record<string, number> = {};
+
+    for (const r of returnsWithItems) {
+      for (const ri of r.items) {
+        const key = ri.transactionItemId;
+        returnedQuantityMap[key] =
+          (returnedQuantityMap[key] ?? 0) + ri.quantity;
+      }
+    }
+
+    // 6. Enhance items with return info
+    const enhancedItems = items.map(item => ({
+      ...item,
+      returnedQuantity: returnedQuantityMap[item.itemId] ?? 0,
+      availableToReturn:
+        item.quantity - (returnedQuantityMap[item.itemId] ?? 0),
+    }));
+
     return {
       ...transaction[0],
-      items,
+      items: enhancedItems,
+      returns: returnsWithItems,
     };
   }
 
@@ -181,4 +248,104 @@ export class PosRepository {
 
     return result[0] ?? null;
   }
+
+  // Return Lookup for returns based on transaction number, customer phone, or customer name
+
+  async returnLookup(shopId: string, search: string) {
+  // Detect search type
+  const isTxnNumber = search.toUpperCase().startsWith('TXN-');
+  const isPhone = /^\d{10,}$/.test(search);
+
+  if (isTxnNumber) {
+    // Search by transaction number
+    const result = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.shopId, shopId),
+          eq(transactions.transactionNumber, search.toUpperCase())
+        )
+      )
+      .limit(1);
+
+    return result;
+  }
+
+  if (isPhone) {
+    // Search by customer phone
+    const customerResults = await db
+      .select()
+      .from(customers)
+      .where(
+        and(
+          eq(customers.shopId, shopId),
+          ilike(customers.phone, `%${search}%`)
+        )
+      )
+      .limit(5);
+
+    if (customerResults.length === 0) return [];
+
+    // Get transactions for found customers
+    const customerIds = customerResults.map(c => c.customerId);
+    const txnResults = [];
+
+    for (const customerId of customerIds) {
+      const txns = await db
+        .select()
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.shopId, shopId),
+            eq(transactions.customerId, customerId)
+          )
+        )
+        .orderBy(desc(transactions.createdAt))
+        .limit(5);
+
+      txnResults.push(...txns);
+    }
+
+    return txnResults;
+  }
+
+  // Search by customer name
+  const customerResults = await db
+    .select()
+    .from(customers)
+    .where(
+      and(
+        eq(customers.shopId, shopId),
+        or(
+          ilike(customers.firstName, `%${search}%`),
+          ilike(customers.lastName, `%${search}%`)
+        )
+      )
+    )
+    .limit(5);
+
+  if (customerResults.length === 0) return [];
+
+  const customerIds = customerResults.map(c => c.customerId);
+  const txnResults = [];
+
+  for (const customerId of customerIds) {
+    const txns = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.shopId, shopId),
+          eq(transactions.customerId, customerId)
+        )
+      )
+      .orderBy(desc(transactions.createdAt))
+      .limit(5);
+
+    txnResults.push(...txns);
+  }
+
+  return txnResults;
+}
 }

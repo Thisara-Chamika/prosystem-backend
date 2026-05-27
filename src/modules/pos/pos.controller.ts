@@ -35,6 +35,9 @@ export class PosController {
   async getTransactions(req: Request, res: Response): Promise<void> {
     try {
       const shopId = req.user!.shopId!;
+      const userRole = req.user!.role;
+      const userId = req.user!.userId;
+
       const filters = {
         status: req.query.status as string,
         paymentMethod: req.query.paymentMethod as string,
@@ -43,6 +46,8 @@ export class PosController {
         toDate: req.query.toDate as string,
         page: req.query.page ? Number(req.query.page) : 1,
         limit: req.query.limit ? Number(req.query.limit) : 10,
+        // ── Cashier sees only their own! ──────────
+        cashierId: userRole === 'cashier' ? userId : undefined,
       };
 
       const transactions = await posService.getTransactions(shopId, filters);
@@ -114,4 +119,33 @@ export class PosController {
       });
     }
   }
+
+  // GET /api/pos/return-lookup
+async returnLookup(req: Request, res: Response): Promise<void> {
+  try {
+    const shopId = req.user!.shopId!;
+    const search = req.query.search as string;
+
+    if (!search) {
+      res.status(400).json({
+        success: false,
+        message: 'Search parameter is required!',
+      });
+      return;
+    }
+
+    const result = await posService.returnLookup(shopId, search);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
 }

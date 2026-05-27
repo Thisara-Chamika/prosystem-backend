@@ -22,3 +22,15 @@ export interface ShopSettings {
   primaryColor?: string;
   logoUrl?: string;
 }
+
+export interface ShopSettings {
+  shopName?: string;
+  currency?: string;
+  timezone?: string;
+  primaryColor?: string;
+  logoUrl?: string;
+  configuration?: {       
+    primaryColor?: string;
+    logoUrl?: string | null;
+  };
+}

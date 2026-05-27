@@ -12,8 +12,14 @@ router.use(authenticate);
 // Get all transactions
 router.get(
   '/',
-  authorize('shop_owner', 'shop_manager'),
   posController.getTransactions.bind(posController)
+);
+
+// GET /api/pos/return-lookup
+router.get(
+  '/return-lookup',
+  authorize('shop_owner', 'shop_manager', 'cashier'),
+  posController.returnLookup.bind(posController)
 );
 
 // Get single transaction
