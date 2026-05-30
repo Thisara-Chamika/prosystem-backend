@@ -12,6 +12,7 @@ import {
 } from '../../enums/plugins.enum';
 import { createAuditLog } from '../../utils/audit.utils';
 import { AuditAction } from '../../enums/audit-actions.enum';
+import { CategoriesService } from '../categories/categories.service';
 
 const shopsRepository = new ShopsRepository();
 
@@ -26,23 +27,30 @@ export class ShopsService {
   }
 
   async updateBusinessType(shopId: string, input: UpdateBusinessTypeInput) {
-    if (!BUSINESS_TEMPLATES.includes(input.businessType as BusinessTemplate)) {
-      throw new Error(
-        `Invalid business type! Valid types: ${BUSINESS_TEMPLATES.join(', ')}`
-      );
-    }
-
-    const shop = await shopsRepository.updateBusinessType(
-      shopId,
-      input.businessType
+  if (!BUSINESS_TEMPLATES.includes(input.businessType as BusinessTemplate)) {
+    throw new Error(
+      `Invalid business type! Valid types: ${BUSINESS_TEMPLATES.join(', ')}`
     );
-
-    if (!shop) {
-      throw new Error('Shop not found!');
-    }
-
-    return shop;
   }
+
+  const shop = await shopsRepository.updateBusinessType(
+    shopId,
+    input.businessType
+  );
+
+  if (!shop) {
+    throw new Error('Shop not found!');
+  }
+
+  // ── Seed categories for new business type! ────
+  const categoriesService = new CategoriesService();
+  await categoriesService.seedCategoriesForBusinessType(
+    shopId,
+    input.businessType
+  );
+
+  return shop;
+}
 
   async getAvailablePlugins(shopId: string) {
     const shop = await shopsRepository.getShopById(shopId);
