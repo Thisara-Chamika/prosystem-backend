@@ -1,6 +1,6 @@
 import { db } from '../../config/database';
 import { users } from '../../db/schema/users';
-import { eq, and, ne, count } from 'drizzle-orm';
+import { eq, and, ne, count, desc } from 'drizzle-orm';
 import { NewUser } from '../../db/schema/users';
 import { StaffFilters } from './staff.types';
 
@@ -49,6 +49,7 @@ export class StaffRepository {
     })
     .from(users)
     .where(and(...conditions))
+    .orderBy(desc(users.createdAt))
     .limit(limit)
     .offset(offset);
 
