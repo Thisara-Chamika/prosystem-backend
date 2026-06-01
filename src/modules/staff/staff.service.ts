@@ -1,6 +1,8 @@
 import bcrypt from 'bcrypt';
 import { StaffRepository } from './staff.repository';
 import { CreateStaffInput, UpdateStaffInput, StaffFilters } from './staff.types';
+import { createAuditLog } from '../../utils/audit.utils';
+import { AuditAction } from '../../enums/audit-actions.enum';
 
 const staffRepository = new StaffRepository();
 const SALT_ROUNDS = 10;
@@ -22,7 +24,7 @@ export class StaffService {
   }
 
   // Create staff member
-  async createStaff(input: CreateStaffInput, shopId: string) {
+  async createStaff(input: CreateStaffInput, shopId: string, createdBy: string) {
     // 1. Validate role — cannot create shop_owner or super_admin!
     const allowedRoles = ['shop_manager', 'cashier'];
     if (!allowedRoles.includes(input.role)) {
@@ -52,11 +54,26 @@ export class StaffService {
       isActive: true,
     });
 
+    // 5. Audit log 
+    await createAuditLog({
+      shopId,
+      userId: createdBy,
+      action: AuditAction.STAFF_CREATED,
+      entityType: 'user',
+      entityId: staff.userId,
+      details: {
+        firstName: input.firstName,
+        lastName: input.lastName,
+        email: input.email,
+        role: input.role,
+      },
+    });
+
     return staff;
   }
 
   // Update staff member
-  async updateStaff(userId: string, shopId: string, input: UpdateStaffInput) {
+  async updateStaff(userId: string, shopId: string, input: UpdateStaffInput, updatedBy: string) {
     // Check staff exists in this shop
     const existing = await staffRepository.getStaffById(userId, shopId);
     if (!existing) {
@@ -80,6 +97,25 @@ export class StaffService {
       delete updateData.password; // remove plain password!
     }
 
+    // Audit log 
+     await createAuditLog({
+    shopId,
+    userId: updatedBy,
+    action: AuditAction.STAFF_UPDATED,
+    entityType: 'user',
+    entityId: userId,
+    details: {
+      updatedUser: `${existing.firstName} ${existing.lastName}`,
+      changes: {
+        role: input.role ?? existing.role,
+        firstName: input.firstName ?? existing.firstName,
+        lastName: input.lastName ?? existing.lastName,
+        isActive: input.isActive,
+      },
+      updatedBy,
+    },
+  });
+
     return await staffRepository.updateStaff(userId, shopId, updateData);
   }
 
@@ -100,6 +136,22 @@ export class StaffService {
       throw new Error('Cannot deactivate a shop owner!');
     }
 
-    return await staffRepository.deleteStaff(userId, shopId);
+    const result = await staffRepository.deleteStaff(userId, shopId);
+
+    // Audit log 
+    await createAuditLog({
+      shopId,
+      userId: requestingUserId,
+      action: AuditAction.STAFF_DEACTIVATED,
+      entityType: 'user',
+      entityId: userId,
+      details: {
+        deactivatedUser: `${existing.firstName} ${existing.lastName}`,
+        role: existing.role,
+        email: existing.email,
+      },
+    });
+
+    return result;
   }
 }

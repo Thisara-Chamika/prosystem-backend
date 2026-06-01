@@ -31,4 +31,5 @@ export interface ProductFilters {
   limit?: number;
   sort?: string;   
   order?: 'asc' | 'desc';
+  include?: string; 
 }
