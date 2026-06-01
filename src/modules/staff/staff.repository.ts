@@ -1,6 +1,6 @@
 import { db } from '../../config/database';
 import { users } from '../../db/schema/users';
-import { eq, and, ne } from 'drizzle-orm';
+import { eq, and, ne, count } from 'drizzle-orm';
 import { NewUser } from '../../db/schema/users';
 import { StaffFilters } from './staff.types';
 
@@ -8,43 +8,52 @@ export class StaffRepository {
 
   // Get all staff for shop
   async getStaff(shopId: string, filters: StaffFilters) {
-    const limit = filters.limit ?? 10;
-    const offset = ((filters.page ?? 1) - 1) * limit;
+  const limit = filters.limit ?? 10;
+  const offset = ((filters.page ?? 1) - 1) * limit;
 
-    const conditions = [
-      eq(users.shopId, shopId),
-      ne(users.role, 'shop_owner' as any),
-    ];
+  const conditions = [
+    eq(users.shopId, shopId),
+    ne(users.role, 'shop_owner' as any),
+  ];
 
-    if (filters.role) {
-      conditions.push(eq(users.role, filters.role as any));
-    }
-
-    if (filters.isActive !== undefined) {
-      conditions.push(eq(users.isActive, filters.isActive));
-    }
-
-    const result = await db
-      .select({
-        userId: users.userId,
-        shopId: users.shopId,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        email: users.email,
-        role: users.role,
-        phone: users.phone,
-        isActive: users.isActive,
-        lastLogin: users.lastLogin,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      })
-      .from(users)
-      .where(and(...conditions))
-      .limit(limit)
-      .offset(offset);
-
-    return result;
+  if (filters.role) {
+    conditions.push(eq(users.role, filters.role as any));
   }
+
+  if (filters.isActive !== undefined) {
+    conditions.push(eq(users.isActive, filters.isActive));
+  }
+
+  // ── COUNT query ───────────────────────────────
+  const countResult = await db
+    .select({ count: count() })
+    .from(users)
+    .where(and(...conditions));
+
+  const total = Number(countResult[0]?.count ?? 0);
+  // ─────────────────────────────────────────────
+
+  const data = await db
+    .select({
+      userId: users.userId,
+      shopId: users.shopId,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email,
+      role: users.role,
+      phone: users.phone,
+      isActive: users.isActive,
+      lastLogin: users.lastLogin,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+    })
+    .from(users)
+    .where(and(...conditions))
+    .limit(limit)
+    .offset(offset);
+
+  return { data, total };
+}
 
   // Get single staff member
   async getStaffById(userId: string, shopId: string) {

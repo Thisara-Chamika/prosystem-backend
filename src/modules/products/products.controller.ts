@@ -41,14 +41,15 @@ export class ProductsController {
   order: (req.query.order as 'asc' | 'desc') ?? 'desc',
       };
 
-      const products = await productsService.getProducts(shopId, filters);
+      const result = await productsService.getProducts(shopId, filters);
 
       res.status(200).json({
         success: true,
-        data: products,
+        data: result.data,
         pagination: {
           page: filters.page,
           limit: filters.limit,
+          total: result.total,
         },
       });
 

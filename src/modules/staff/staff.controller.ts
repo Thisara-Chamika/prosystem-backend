@@ -18,14 +18,15 @@ export class StaffController {
         limit: req.query.limit ? Number(req.query.limit) : 10,
       };
 
-      const staff = await staffService.getStaff(shopId, filters);
+      const result = await staffService.getStaff(shopId, filters);
 
       res.status(200).json({
         success: true,
-        data: staff,
+        data: result.data,
         pagination: {
           page: filters.page,
           limit: filters.limit,
+          total: result.total,
         },
       });
 

@@ -2,7 +2,7 @@ import { db } from '../../config/database';
 import { transactions, transactionItems } from '../../db/schema/transactions';
 import { inventory } from '../../db/schema/inventory';
 import { products } from '../../db/schema/products';
-import { eq, and, gte, lte, desc, ilike, or } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, ilike, or, count } from 'drizzle-orm';
 import { NewTransaction, NewTransactionItem } from '../../db/schema/transactions';
 import { TransactionFilters } from './pos.types';
 import { returns, returnItems } from '../../db/schema/returns';
@@ -103,43 +103,54 @@ export class PosRepository {
 
   // Get all transactions
   async getTransactions(shopId: string, filters: TransactionFilters) {
-    const limit = filters.limit ?? 10;
-    const offset = ((filters.page ?? 1) - 1) * limit;
+  const limit = filters.limit ?? 10;
+  const offset = ((filters.page ?? 1) - 1) * limit;
 
-    const conditions = [eq(transactions.shopId, shopId)];
+  const conditions = [eq(transactions.shopId, shopId)];
 
-    if (filters.status) {
-      conditions.push(eq(transactions.status, filters.status as any));
-    }
-
-    if (filters.paymentMethod) {
-      conditions.push(eq(transactions.paymentMethod, filters.paymentMethod as any));
-    }
-
-    if (filters.customerId) {
-      conditions.push(eq(transactions.customerId, filters.customerId));
-    }
-
-    if (filters.fromDate) {
-      conditions.push(gte(transactions.createdAt, new Date(filters.fromDate)));
-    }
-
-    if (filters.toDate) {
-      conditions.push(lte(transactions.createdAt, new Date(filters.toDate)));
-    }
-
-    if (filters.cashierId) {
-    conditions.push(eq(transactions.cashierId, filters.cashierId));
-    }
-
-    return await db
-      .select()
-      .from(transactions)
-      .where(and(...conditions))
-      .orderBy(desc(transactions.createdAt))
-      .limit(limit)
-      .offset(offset);
+  if (filters.status) {
+    conditions.push(eq(transactions.status, filters.status as any));
   }
+
+  if (filters.paymentMethod) {
+    conditions.push(eq(transactions.paymentMethod, filters.paymentMethod as any));
+  }
+
+  if (filters.customerId) {
+    conditions.push(eq(transactions.customerId, filters.customerId));
+  }
+
+  if (filters.cashierId) {
+    conditions.push(eq(transactions.cashierId, filters.cashierId));
+  }
+
+  if (filters.fromDate) {
+    conditions.push(gte(transactions.createdAt, new Date(filters.fromDate)));
+  }
+
+  if (filters.toDate) {
+    conditions.push(lte(transactions.createdAt, new Date(filters.toDate)));
+  }
+
+  // ── COUNT query ───────────────────────────────
+  const countResult = await db
+    .select({ count: count() })
+    .from(transactions)
+    .where(and(...conditions));
+
+  const total = Number(countResult[0]?.count ?? 0);
+  // ─────────────────────────────────────────────
+
+  const data = await db
+    .select()
+    .from(transactions)
+    .where(and(...conditions))
+    .orderBy(desc(transactions.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return { data, total };
+}
 
   // Get single transaction with items
   async getTransactionById(transactionId: string, shopId: string) {
