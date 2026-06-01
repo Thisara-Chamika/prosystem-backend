@@ -63,8 +63,9 @@ export class StaffController {
   async createStaff(req: Request, res: Response): Promise<void> {
     try {
       const shopId = req.user!.shopId!;
+      const createdBy = req.user!.userId;
 
-      const staff = await staffService.createStaff(req.body, shopId);
+      const staff = await staffService.createStaff(req.body, shopId, createdBy);
 
       res.status(201).json({
         success: true,
@@ -84,12 +85,14 @@ export class StaffController {
   async updateStaff(req: Request, res: Response): Promise<void> {
     try {
       const shopId = req.user!.shopId!;
+      const updatedBy = req.user!.userId;
       const { staffId } = req.params;
 
       const staff = await staffService.updateStaff(
         staffId,
         shopId,
-        req.body
+        req.body,
+        updatedBy
       );
 
       res.status(200).json({

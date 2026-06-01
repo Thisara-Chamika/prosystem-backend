@@ -9,13 +9,18 @@ export const AuditAction = {
 
   // Staff actions
   STAFF_CREATED: 'STAFF_CREATED',
+  STAFF_UPDATED: 'STAFF_UPDATED',
   STAFF_DEACTIVATED: 'STAFF_DEACTIVATED',
 
-  // Future actions (ready to use!)
+  // Product actions
   PRODUCT_CREATED: 'PRODUCT_CREATED',
   PRODUCT_DELETED: 'PRODUCT_DELETED',
+
+  // Transaction actions
   TRANSACTION_CREATED: 'TRANSACTION_CREATED',
   TRANSACTION_CANCELLED: 'TRANSACTION_CANCELLED',
+
+  // Shop settings
   SETTINGS_UPDATED: 'SETTINGS_UPDATED',
 } as const;
 
