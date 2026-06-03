@@ -19,13 +19,18 @@ export class ProductsRepository {
       })
       .returning();
 
-    // Create inventory record
+    // Services always get quantity=0 regardless of initialStock
+    const actualStock = productData.productType === 'service'
+      ? 0
+      : initialStock;
+
+    // Always create inventory record (even for services!)
     await db
       .insert(inventory)
       .values({
         shopId: productData.shopId,
         productId: newProduct[0].productId,
-        quantity: initialStock,
+        quantity: actualStock,  
         updatedBy: userId,
       });
 
@@ -55,6 +60,10 @@ export class ProductsRepository {
       )!
     );
   }
+
+  if (filters.productType) {
+  conditions.push(eq(products.productType, filters.productType));
+}
 
   const columnMap: Record<string, any> = {
     createdAt: products.createdAt,
@@ -123,6 +132,13 @@ export class ProductsRepository {
 
   // Update product
   async updateProduct(productId: string, shopId: string, data: Partial<NewProduct>, userId: string) {
+    // Auto update trackInventory when productType changes
+    if (data.productType === 'service') {
+      data.trackInventory = false;  
+    } else if (data.productType === 'product') {
+      data.trackInventory = true;   
+    }
+
     const result = await db
       .update(products)
       .set({
