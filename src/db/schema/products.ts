@@ -37,6 +37,10 @@ export const products = pgTable('products', {
   isActive: boolean('is_active')
     .default(true),
 
+  productType: varchar('product_type', { length: 20 })
+    .notNull()
+    .default('product'),
+
   createdAt: timestamp('created_at', { mode: 'date' })
     .defaultNow()
     .notNull(),
