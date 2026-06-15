@@ -6,13 +6,11 @@ const router = Router();
 const inventoryController = new InventoryController();
 
 router.use(authenticate);
-router.use(authorize('shop_owner', 'shop_manager'));
 
-// ── IMPORTANT: specific routes BEFORE param routes! ──
-
-// GET /api/inventory/low-stock ← must be before /:productId!
+// GET /api/inventory/low-stock
 router.get(
   '/low-stock',
+  authorize('shop_owner', 'shop_manager'),  
   inventoryController.getLowStock.bind(inventoryController)
 );
 
@@ -25,6 +23,7 @@ router.get(
 // PUT /api/inventory/:productId/reorder
 router.put(
   '/:productId/reorder',
+  authorize('shop_owner', 'shop_manager'),
   inventoryController.updateReorderSettings.bind(inventoryController)
 );
 
