@@ -1,7 +1,7 @@
 import { db } from '../../config/database';
 import { inventory } from '../../db/schema/inventory';
 import { products } from '../../db/schema/products';
-import { eq, and, ilike, lte, or, count } from 'drizzle-orm';
+import { eq, and, ilike, or, count, desc } from 'drizzle-orm';
 
 export class InventoryRepository {
 
@@ -33,6 +33,7 @@ export class InventoryRepository {
         reorderPoint: inventory.reorderPoint,
         reorderQuantity: inventory.reorderQuantity,
         updatedAt: inventory.updatedAt,
+        createdAt: products.createdAt,
       })
       .from(inventory)
       .innerJoin(
@@ -43,7 +44,8 @@ export class InventoryRepository {
           eq(products.isActive, true)
         )
       )
-      .where(eq(inventory.shopId, shopId));
+      .where(eq(inventory.shopId, shopId))
+      .orderBy(desc(products.createdAt));
 
     // Filter in JS (simpler than complex SQL conditions)
     let filtered = allItems;
