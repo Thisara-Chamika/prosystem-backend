@@ -14,7 +14,7 @@ export class InventoryRepository {
     page?: number;
     limit?: number;
   }) {
-    const limit = filters.limit ?? 20;
+    const limit = filters.limit ?? 10;
     const offset = ((filters.page ?? 1) - 1) * limit;
 
     // Join inventory with products

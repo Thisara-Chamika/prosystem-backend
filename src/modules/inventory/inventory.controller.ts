@@ -15,7 +15,7 @@ export class InventoryController {
         status: req.query.status as string,
         productType: req.query.productType as string,
         page: req.query.page ? Number(req.query.page) : 1,
-        limit: req.query.limit ? Number(req.query.limit) : 20,
+        limit: req.query.limit ? Number(req.query.limit) : 10,
       };
 
       const result = await inventoryService.getInventory(shopId, filters);
