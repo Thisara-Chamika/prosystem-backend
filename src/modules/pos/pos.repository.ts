@@ -1,19 +1,21 @@
-import { db } from '../../config/database';
-import { transactions, transactionItems } from '../../db/schema/transactions';
-import { inventory } from '../../db/schema/inventory';
-import { products } from '../../db/schema/products';
-import { eq, and, gte, lte, desc, ilike, or } from 'drizzle-orm';
-import { NewTransaction, NewTransactionItem } from '../../db/schema/transactions';
-import { TransactionFilters } from './pos.types';
-import { returns, returnItems } from '../../db/schema/returns';
-import { customers } from '../../db/schema/customers';
+import { db } from "../../config/database";
+import { transactions, transactionItems } from "../../db/schema/transactions";
+import { inventory } from "../../db/schema/inventory";
+import { products } from "../../db/schema/products";
+import { eq, and, gte, lte, desc, ilike, or, count } from "drizzle-orm";
+import {
+  NewTransaction,
+  NewTransactionItem,
+} from "../../db/schema/transactions";
+import { TransactionFilters } from "./pos.types";
+import { returns, returnItems } from "../../db/schema/returns";
+import { customers } from "../../db/schema/customers";
 
 export class PosRepository {
-
   // Generate transaction number
   async generateTransactionNumber(shopId: string): Promise<string> {
     const date = new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
     const timeStr = date.getTime().toString().slice(-6);
     return `TXN-${dateStr}-${timeStr}`;
   }
@@ -27,8 +29,8 @@ export class PosRepository {
         and(
           eq(products.productId, productId),
           eq(products.shopId, shopId),
-          eq(products.isActive, true)
-        )
+          eq(products.isActive, true),
+        ),
       )
       .limit(1);
 
@@ -38,10 +40,7 @@ export class PosRepository {
       .select()
       .from(inventory)
       .where(
-        and(
-          eq(inventory.productId, productId),
-          eq(inventory.shopId, shopId)
-        )
+        and(eq(inventory.productId, productId), eq(inventory.shopId, shopId)),
       )
       .limit(1);
 
@@ -54,7 +53,7 @@ export class PosRepository {
   // Create transaction with items
   async createTransaction(
     transactionData: NewTransaction,
-    items: NewTransactionItem[]
+    items: NewTransactionItem[],
   ) {
     // 1. Create transaction
     const newTransaction = await db
@@ -65,22 +64,29 @@ export class PosRepository {
     // 2. Create transaction items
     const newItems = await db
       .insert(transactionItems)
-      .values(items.map(item => ({
-        ...item,
-        transactionId: newTransaction[0].transactionId,
-      })))
+      .values(
+        items.map((item) => ({
+          ...item,
+          transactionId: newTransaction[0].transactionId,
+        })),
+      )
       .returning();
 
     // 3. Update inventory for each item
     for (const item of items) {
+      // Skip inventory deduction for services!
+      if ((item as any).productType === "service") {
+        continue;
+      }
+
       const currentInventory = await db
         .select()
         .from(inventory)
         .where(
           and(
             eq(inventory.productId, item.productId),
-            eq(inventory.shopId, transactionData.shopId!)
-          )
+            eq(inventory.shopId, transactionData.shopId!),
+          ),
         )
         .limit(1);
 
@@ -113,11 +119,17 @@ export class PosRepository {
     }
 
     if (filters.paymentMethod) {
-      conditions.push(eq(transactions.paymentMethod, filters.paymentMethod as any));
+      conditions.push(
+        eq(transactions.paymentMethod, filters.paymentMethod as any),
+      );
     }
 
     if (filters.customerId) {
       conditions.push(eq(transactions.customerId, filters.customerId));
+    }
+
+    if (filters.cashierId) {
+      conditions.push(eq(transactions.cashierId, filters.cashierId));
     }
 
     if (filters.fromDate) {
@@ -128,17 +140,24 @@ export class PosRepository {
       conditions.push(lte(transactions.createdAt, new Date(filters.toDate)));
     }
 
-    if (filters.cashierId) {
-    conditions.push(eq(transactions.cashierId, filters.cashierId));
-    }
+    // ── COUNT query ───────────────────────────────
+    const countResult = await db
+      .select({ count: count() })
+      .from(transactions)
+      .where(and(...conditions));
 
-    return await db
+    const total = Number(countResult[0]?.count ?? 0);
+    // ─────────────────────────────────────────────
+
+    const data = await db
       .select()
       .from(transactions)
       .where(and(...conditions))
       .orderBy(desc(transactions.createdAt))
       .limit(limit)
       .offset(offset);
+
+    return { data, total };
   }
 
   // Get single transaction with items
@@ -150,8 +169,8 @@ export class PosRepository {
       .where(
         and(
           eq(transactions.transactionId, transactionId),
-          eq(transactions.shopId, shopId)
-        )
+          eq(transactions.shopId, shopId),
+        ),
       )
       .limit(1);
 
@@ -185,7 +204,7 @@ export class PosRepository {
           createdAt: r.createdAt,
           returnedBy: r.returnedBy,
           approvedBy: r.approvedBy,
-          items: rItems.map(ri => ({
+          items: rItems.map((ri) => ({
             returnItemId: ri.returnItemId,
             productId: ri.productId,
             transactionItemId: ri.transactionItemId,
@@ -195,7 +214,7 @@ export class PosRepository {
             reason: ri.reason,
           })),
         };
-      })
+      }),
     );
 
     // 5. Calculate returnedQuantity per transaction item
@@ -210,7 +229,7 @@ export class PosRepository {
     }
 
     // 6. Enhance items with return info
-    const enhancedItems = items.map(item => ({
+    const enhancedItems = items.map((item) => ({
       ...item,
       returnedQuantity: returnedQuantityMap[item.itemId] ?? 0,
       availableToReturn:
@@ -229,7 +248,7 @@ export class PosRepository {
     transactionId: string,
     shopId: string,
     status: string,
-    userId: string
+    userId: string,
   ) {
     const result = await db
       .update(transactions)
@@ -241,8 +260,8 @@ export class PosRepository {
       .where(
         and(
           eq(transactions.transactionId, transactionId),
-          eq(transactions.shopId, shopId)
-        )
+          eq(transactions.shopId, shopId),
+        ),
       )
       .returning();
 
@@ -252,43 +271,82 @@ export class PosRepository {
   // Return Lookup for returns based on transaction number, customer phone, or customer name
 
   async returnLookup(shopId: string, search: string) {
-  // Detect search type
-  const isTxnNumber = search.toUpperCase().startsWith('TXN-');
-  const isPhone = /^\d{10,}$/.test(search);
+    // Detect search type
+    const isTxnNumber = search.toUpperCase().startsWith("TXN-");
+    const isPhone = /^\d{10,}$/.test(search);
 
-  if (isTxnNumber) {
-    // Search by transaction number
-    const result = await db
-      .select()
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.shopId, shopId),
-          eq(transactions.transactionNumber, search.toUpperCase())
+    if (isTxnNumber) {
+      // Search by transaction number
+      const result = await db
+        .select()
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.shopId, shopId),
+            eq(transactions.transactionNumber, search.toUpperCase()),
+          ),
         )
-      )
-      .limit(1);
+        .limit(1);
 
-    return result;
-  }
+      return result;
+    }
 
-  if (isPhone) {
-    // Search by customer phone
+    if (isPhone) {
+      // Search by customer phone
+      const customerResults = await db
+        .select()
+        .from(customers)
+        .where(
+          and(
+            eq(customers.shopId, shopId),
+            ilike(customers.phone, `%${search}%`),
+          ),
+        )
+        .limit(5);
+
+      if (customerResults.length === 0) return [];
+
+      // Get transactions for found customers
+      const customerIds = customerResults.map((c) => c.customerId);
+      const txnResults = [];
+
+      for (const customerId of customerIds) {
+        const txns = await db
+          .select()
+          .from(transactions)
+          .where(
+            and(
+              eq(transactions.shopId, shopId),
+              eq(transactions.customerId, customerId),
+            ),
+          )
+          .orderBy(desc(transactions.createdAt))
+          .limit(5);
+
+        txnResults.push(...txns);
+      }
+
+      return txnResults;
+    }
+
+    // Search by customer name
     const customerResults = await db
       .select()
       .from(customers)
       .where(
         and(
           eq(customers.shopId, shopId),
-          ilike(customers.phone, `%${search}%`)
-        )
+          or(
+            ilike(customers.firstName, `%${search}%`),
+            ilike(customers.lastName, `%${search}%`),
+          ),
+        ),
       )
       .limit(5);
 
     if (customerResults.length === 0) return [];
 
-    // Get transactions for found customers
-    const customerIds = customerResults.map(c => c.customerId);
+    const customerIds = customerResults.map((c) => c.customerId);
     const txnResults = [];
 
     for (const customerId of customerIds) {
@@ -298,8 +356,8 @@ export class PosRepository {
         .where(
           and(
             eq(transactions.shopId, shopId),
-            eq(transactions.customerId, customerId)
-          )
+            eq(transactions.customerId, customerId),
+          ),
         )
         .orderBy(desc(transactions.createdAt))
         .limit(5);
@@ -309,43 +367,4 @@ export class PosRepository {
 
     return txnResults;
   }
-
-  // Search by customer name
-  const customerResults = await db
-    .select()
-    .from(customers)
-    .where(
-      and(
-        eq(customers.shopId, shopId),
-        or(
-          ilike(customers.firstName, `%${search}%`),
-          ilike(customers.lastName, `%${search}%`)
-        )
-      )
-    )
-    .limit(5);
-
-  if (customerResults.length === 0) return [];
-
-  const customerIds = customerResults.map(c => c.customerId);
-  const txnResults = [];
-
-  for (const customerId of customerIds) {
-    const txns = await db
-      .select()
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.shopId, shopId),
-          eq(transactions.customerId, customerId)
-        )
-      )
-      .orderBy(desc(transactions.createdAt))
-      .limit(5);
-
-    txnResults.push(...txns);
-  }
-
-  return txnResults;
-}
 }

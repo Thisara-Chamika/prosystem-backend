@@ -1,28 +1,27 @@
-import { PosRepository } from './pos.repository';
-import { CreateTransactionInput, TransactionFilters } from './pos.types';
-import { ProductsRepository } from '../products/products.repository';
+import { PosRepository } from "./pos.repository";
+import { CreateTransactionInput, TransactionFilters } from "./pos.types";
+import { ProductsRepository } from "../products/products.repository";
 
 const posRepository = new PosRepository();
 const productsRepository = new ProductsRepository();
 
 export class PosService {
-
   // Create transaction (main POS operation)
   async createTransaction(
     input: CreateTransactionInput,
     shopId: string,
-    userId: string
+    userId: string,
   ) {
     // 1. Validate all items and calculate totals
     let subtotal = 0;
-     let totalTax = 0;
+    let totalTax = 0;
     const itemsToCreate = [];
 
     for (const item of input.items) {
       // Get product with inventory
       const product = await posRepository.getProductWithInventory(
         item.productId,
-        shopId
+        shopId,
       );
 
       if (!product) {
@@ -30,26 +29,31 @@ export class PosService {
       }
 
       // Check stock availability
-      if (product.trackInventory && product.inventory) {
-        const available = product.inventory.quantity - product.inventory.reserved;
+      if (
+        product.productType !== "service" &&
+        product.trackInventory &&
+        product.inventory
+      ) {
+        const available =
+          product.inventory.quantity - product.inventory.reserved;
         if (available < item.quantity) {
           throw new Error(
-            `Insufficient stock for ${product.name}! Available: ${available}`
+            `Insufficient stock for ${product.name}! Available: ${available}`,
           );
         }
       }
 
       // Calculate item total
       const unitPrice = parseFloat(product.price);
-const itemDiscount = item.discount ?? 0;
-const itemSubtotal = (unitPrice * item.quantity) - itemDiscount;
+      const itemDiscount = item.discount ?? 0;
+      const itemSubtotal = unitPrice * item.quantity - itemDiscount;
 
-// ── Calculate tax per product ──────────────────
-const productTaxRate = parseFloat(product.taxRate ?? '0') / 100;
-const itemTax = itemSubtotal * productTaxRate;
+      // ── Calculate tax per product ──────────────────
+      const productTaxRate = parseFloat(product.taxRate ?? "0") / 100;
+      const itemTax = itemSubtotal * productTaxRate;
 
-subtotal += itemSubtotal;
-totalTax += itemTax;
+      subtotal += itemSubtotal;
+      totalTax += itemTax;
 
       itemsToCreate.push({
         shopId,
@@ -60,17 +64,19 @@ totalTax += itemTax;
         unitPrice: String(unitPrice),
         discount: String(itemDiscount),
         total: String(itemSubtotal),
-        transactionId: '',
+        transactionId: "",
+        productType: product.productType,
       });
     }
 
     // 2. Calculate tax and total
     const discount = input.discount ?? 0;
-    const tax = totalTax;  
+    const tax = totalTax;
     const total = subtotal - discount + tax;
 
     // 3. Generate transaction number
-    const transactionNumber = await posRepository.generateTransactionNumber(shopId);
+    const transactionNumber =
+      await posRepository.generateTransactionNumber(shopId);
 
     // 4. Create transaction
     const result = await posRepository.createTransaction(
@@ -84,13 +90,13 @@ totalTax += itemTax;
         discount: String(discount),
         total: String(total),
         paymentMethod: input.paymentMethod,
-        paymentStatus: 'paid',
-        status: 'completed',
+        paymentStatus: "paid",
+        status: "completed",
         notes: input.notes,
         createdBy: userId,
         updatedBy: userId,
       },
-      itemsToCreate
+      itemsToCreate,
     );
 
     return result;
@@ -105,59 +111,60 @@ totalTax += itemTax;
   async getTransactionById(transactionId: string, shopId: string) {
     const transaction = await posRepository.getTransactionById(
       transactionId,
-      shopId
+      shopId,
     );
     if (!transaction) {
-      throw new Error('Transaction not found!');
+      throw new Error("Transaction not found!");
     }
     return transaction;
   }
 
   // Cancel transaction
-  async cancelTransaction(transactionId: string, shopId: string, userId: string) {
+  async cancelTransaction(
+    transactionId: string,
+    shopId: string,
+    userId: string,
+  ) {
     const existing = await posRepository.getTransactionById(
       transactionId,
-      shopId
+      shopId,
     );
 
     if (!existing) {
-      throw new Error('Transaction not found!');
+      throw new Error("Transaction not found!");
     }
 
-    if (existing.status === 'cancelled') {
-      throw new Error('Transaction already cancelled!');
+    if (existing.status === "cancelled") {
+      throw new Error("Transaction already cancelled!");
     }
 
-    if (existing.status === 'refunded') {
-      throw new Error('Transaction already refunded!');
+    if (existing.status === "refunded") {
+      throw new Error("Transaction already refunded!");
     }
 
     return await posRepository.updateTransactionStatus(
       transactionId,
       shopId,
-      'cancelled',
-      userId
+      "cancelled",
+      userId,
     );
   }
 
   //Return lookup for transactions and customers
   async returnLookup(shopId: string, search: string) {
-  if (!search || search.trim().length < 2) {
-    throw new Error('Search term must be at least 2 characters!');
+    if (!search || search.trim().length < 2) {
+      throw new Error("Search term must be at least 2 characters!");
+    }
+
+    const results = await posRepository.returnLookup(shopId, search.trim());
+
+    return {
+      searchType: search.toUpperCase().startsWith("TXN-")
+        ? "transaction_number"
+        : /^\d{10,}$/.test(search)
+          ? "phone"
+          : "customer_name",
+      results,
+    };
   }
-
-  const results = await posRepository.returnLookup(
-    shopId,
-    search.trim()
-  );
-
-  return {
-    searchType: search.toUpperCase().startsWith('TXN-')
-      ? 'transaction_number'
-      : /^\d{10,}$/.test(search)
-      ? 'phone'
-      : 'customer_name',
-    results,
-  };
-}
 }

@@ -50,14 +50,15 @@ export class PosController {
         cashierId: userRole === 'cashier' ? userId : undefined,
       };
 
-      const transactions = await posService.getTransactions(shopId, filters);
+      const result = await posService.getTransactions(shopId, filters);
 
       res.status(200).json({
         success: true,
-        data: transactions,
+        data: result.data,
         pagination: {
           page: filters.page,
           limit: filters.limit,
+          total: result.total,
         },
       });
 

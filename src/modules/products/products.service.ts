@@ -32,8 +32,11 @@ export class ProductsService {
 
   // Get all products
   async getProducts(shopId: string, filters: ProductFilters) {
-    return await productsRepository.getProducts(shopId, filters);
+  if (filters.include === 'inventory') {
+    return await productsRepository.getProductsWithInventory(shopId, filters);
   }
+  return await productsRepository.getProducts(shopId, filters);
+}
 
   // Get single product
   async getProductById(productId: string, shopId: string) {

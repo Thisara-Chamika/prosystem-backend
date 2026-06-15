@@ -1,7 +1,7 @@
 import { db } from '../../config/database';
 import { products } from '../../db/schema/products';
 import { inventory } from '../../db/schema/inventory';
-import { eq, and, ilike, or, asc, desc } from 'drizzle-orm';
+import { eq, and, ilike, or, asc, desc, count } from 'drizzle-orm';
 import { NewProduct } from '../../db/schema/products';
 import { ProductFilters } from './products.types';
 
@@ -19,13 +19,18 @@ export class ProductsRepository {
       })
       .returning();
 
-    // Create inventory record
+    // Services always get quantity=0 regardless of initialStock
+    const actualStock = productData.productType === 'service'
+      ? 0
+      : initialStock;
+
+    // Always create inventory record (even for services!)
     await db
       .insert(inventory)
       .values({
         shopId: productData.shopId,
         productId: newProduct[0].productId,
-        quantity: initialStock,
+        quantity: actualStock,  
         updatedBy: userId,
       });
 
@@ -34,53 +39,64 @@ export class ProductsRepository {
 
   // Get all products with filters
   async getProducts(shopId: string, filters: ProductFilters) {
-    const limit = filters.limit ?? 10;
-    const offset = ((filters.page ?? 1) - 1) * limit;
+  const limit = filters.limit ?? 10;
+  const offset = ((filters.page ?? 1) - 1) * limit;
 
-    const conditions = [eq(products.shopId, shopId)];
+  const conditions = [eq(products.shopId, shopId)];
 
-    if (filters.isActive !== undefined) {
-      conditions.push(eq(products.isActive, filters.isActive));
-    }
-
-    if (filters.category) {
-      conditions.push(eq(products.category, filters.category));
-    }
-
-    if (filters.search) {
-      conditions.push(
-        or(
-          ilike(products.name, `%${filters.search}%`),
-          ilike(products.sku, `%${filters.search}%`)
-        )!
-      );
-    }
-
-    // ── Sorting ───────────────────────────────────
-    const sortColumn = filters.sort ?? 'createdAt';
-    const sortOrder = filters.order ?? 'desc';
-
-    const columnMap: Record<string, any> = {
-      createdAt: products.createdAt,
-      updatedAt: products.updatedAt,
-      name: products.name,
-      price: products.price,
-      sku: products.sku,
-    };
-
-    const column = columnMap[sortColumn] ?? products.createdAt;
-    const orderBy = sortOrder === 'asc' ? asc(column) : desc(column);
-
-    const result = await db
-      .select()
-      .from(products)
-      .where(and(...conditions))
-      .orderBy(orderBy)
-      .limit(limit)
-      .offset(offset);
-
-    return result;
+  if (filters.isActive !== undefined) {
+    conditions.push(eq(products.isActive, filters.isActive));
   }
+
+  if (filters.category) {
+    conditions.push(eq(products.category, filters.category));
+  }
+
+  if (filters.search) {
+    conditions.push(
+      or(
+        ilike(products.name, `%${filters.search}%`),
+        ilike(products.sku, `%${filters.search}%`)
+      )!
+    );
+  }
+
+  if (filters.productType) {
+  conditions.push(eq(products.productType, filters.productType));
+}
+
+  const columnMap: Record<string, any> = {
+    createdAt: products.createdAt,
+    updatedAt: products.updatedAt,
+    name: products.name,
+    price: products.price,
+    sku: products.sku,
+  };
+
+  const sortColumn = filters.sort ?? 'createdAt';
+  const sortOrder = filters.order ?? 'desc';
+  const column = columnMap[sortColumn] ?? products.createdAt;
+  const orderBy = sortOrder === 'asc' ? asc(column) : desc(column);
+
+  // ── COUNT query ───────────────────────────────
+  const countResult = await db
+    .select({ count: count() })
+    .from(products)
+    .where(and(...conditions));
+
+  const total = Number(countResult[0]?.count ?? 0);
+  // ─────────────────────────────────────────────
+
+  const data = await db
+    .select()
+    .from(products)
+    .where(and(...conditions))
+    .orderBy(orderBy)
+    .limit(limit)
+    .offset(offset);
+
+  return { data, total };
+}
 
   // Get single product
   async getProductById(productId: string, shopId: string) {
@@ -116,6 +132,13 @@ export class ProductsRepository {
 
   // Update product
   async updateProduct(productId: string, shopId: string, data: Partial<NewProduct>, userId: string) {
+    // Auto update trackInventory when productType changes
+    if (data.productType === 'service') {
+      data.trackInventory = false;  
+    } else if (data.productType === 'product') {
+      data.trackInventory = true;   
+    }
+
     const result = await db
       .update(products)
       .set({
@@ -169,6 +192,120 @@ export class ProductsRepository {
 
     return result[0] ?? null;
   }
+
+  // Get all products WITH inventory (for ?include=inventory)
+async getProductsWithInventory(shopId: string, filters: ProductFilters) {
+  const limit = filters.limit ?? 10;
+  const offset = ((filters.page ?? 1) - 1) * limit;
+
+  const conditions = [eq(products.shopId, shopId)];
+
+  if (filters.isActive !== undefined) {
+    conditions.push(eq(products.isActive, filters.isActive));
+  }
+
+  if (filters.category) {
+    conditions.push(eq(products.category, filters.category));
+  }
+
+  if (filters.search) {
+    conditions.push(
+      or(
+        ilike(products.name, `%${filters.search}%`),
+        ilike(products.sku, `%${filters.search}%`)
+      )!
+    );
+  }
+
+  const columnMap: Record<string, any> = {
+    createdAt: products.createdAt,
+    updatedAt: products.updatedAt,
+    name: products.name,
+    price: products.price,
+    sku: products.sku,
+  };
+
+  const sortColumn = filters.sort ?? 'createdAt';
+  const sortOrder = filters.order ?? 'desc';
+  const column = columnMap[sortColumn] ?? products.createdAt;
+  const orderBy = sortOrder === 'asc' ? asc(column) : desc(column);
+
+  // COUNT with same conditions
+  const countResult = await db
+    .select({ count: count() })
+    .from(products)
+    .where(and(...conditions));
+
+  const total = Number(countResult[0]?.count ?? 0);
+
+  // Join products with inventory
+  const result = await db
+    .select({
+      productId: products.productId,
+      shopId: products.shopId,
+      sku: products.sku,
+      barcode: products.barcode,
+      name: products.name,
+      description: products.description,
+      category: products.category,
+      price: products.price,
+      cost: products.cost,
+      taxRate: products.taxRate,
+      trackInventory: products.trackInventory,
+      isActive: products.isActive,
+      createdAt: products.createdAt,
+      updatedAt: products.updatedAt,
+      createdBy: products.createdBy,
+      updatedBy: products.updatedBy,
+      inventoryId: inventory.inventoryId,
+      quantity: inventory.quantity,
+      reserved: inventory.reserved,
+      reorderPoint: inventory.reorderPoint,
+      reorderQuantity: inventory.reorderQuantity,
+    })
+    .from(products)
+    .leftJoin(
+      inventory,
+      and(
+        eq(inventory.productId, products.productId),
+        eq(inventory.shopId, products.shopId)
+      )
+    )
+    .where(and(...conditions))
+    .orderBy(orderBy)
+    .limit(limit)
+    .offset(offset);
+
+  // Shape response
+  const data = result.map(row => ({
+    productId: row.productId,
+    shopId: row.shopId,
+    sku: row.sku,
+    barcode: row.barcode,
+    name: row.name,
+    description: row.description,
+    category: row.category,
+    price: row.price,
+    cost: row.cost,
+    taxRate: row.taxRate,
+    trackInventory: row.trackInventory,
+    isActive: row.isActive,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    createdBy: row.createdBy,
+    updatedBy: row.updatedBy,
+    inventory: row.inventoryId ? {
+      inventoryId: row.inventoryId,
+      quantity: row.quantity,
+      reserved: row.reserved,
+      available: (row.quantity ?? 0) - (row.reserved ?? 0),
+      reorderPoint: row.reorderPoint,
+      reorderQuantity: row.reorderQuantity,
+    } : null,
+  }));
+
+  return { data, total };
+}
 
   // Update inventory
   async updateInventory(productId: string, shopId: string, quantity: number, userId: string) {

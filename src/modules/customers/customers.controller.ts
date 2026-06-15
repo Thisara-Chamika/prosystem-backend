@@ -41,14 +41,15 @@ export class CustomersController {
         limit: req.query.limit ? Number(req.query.limit) : 10,
       };
 
-      const customers = await customersService.getCustomers(shopId, filters);
+      const result = await customersService.getCustomers(shopId, filters);
 
       res.status(200).json({
         success: true,
-        data: customers,
+        data: result.data,
         pagination: {
           page: filters.page,
           limit: filters.limit,
+          total: result.total,
         },
       });
 
