@@ -14,6 +14,7 @@ import dashboardRoutes from './modules/dashboard/dashboard.routes';
 import reportsRoutes from './modules/reports/reports.routes';
 import categoriesRoutes from './modules/categories/categories.routes';
 import inventoryRoutes from './modules/inventory/inventory.routes';
+import pluginsRoutes from './modules/plugins/plugins.routes';
 
 // Load environment variables
 dotenv.config();
@@ -58,6 +59,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/plugins', pluginsRoutes);
 // ─── Health Check Route ───────────────────────
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
