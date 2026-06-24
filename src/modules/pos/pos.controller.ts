@@ -10,11 +10,13 @@ export class PosController {
     try {
       const shopId = req.user!.shopId!;
       const userId = req.user!.userId;
+      const role = req.user!.role;
 
       const result = await posService.createTransaction(
         req.body,
         shopId,
-        userId
+        userId,
+        role
       );
 
       res.status(201).json({
