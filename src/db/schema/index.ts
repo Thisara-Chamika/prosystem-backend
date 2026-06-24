@@ -7,3 +7,4 @@ export * from './transactions';
 export * from './returns';
 export * from './audit-logs';
 export * from './categories';
+export * from './plugin-configurations';
