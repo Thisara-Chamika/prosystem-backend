@@ -4,6 +4,8 @@ import { AVAILABLE_PLUGINS } from '../../plugins/PluginRegistry';
 import { db } from '../../config/database';
 import { pluginConfigurations } from '../../db/schema/plugin-configurations';
 import { eq, and } from 'drizzle-orm';
+import { createAuditLog } from '../../utils/audit.utils';
+import { AuditAction } from '../../enums/audit-actions.enum';
 
 export class PluginsController {
 
@@ -61,6 +63,15 @@ export class PluginsController {
 
       await pluginEngine.installPlugin(shopId, pluginId);
 
+      await createAuditLog({
+      shopId,
+      userId: req.user!.userId,
+      action: AuditAction.PLUGIN_INSTALLED,
+      entityType: 'plugin',
+      entityId: pluginId,
+      details: { pluginId },
+    });
+
       res.status(200).json({
         success: true,
         message: `Plugin '${pluginId}' installed successfully!`,
@@ -82,6 +93,15 @@ export class PluginsController {
       const { pluginId } = req.params;
 
       await pluginEngine.uninstallPlugin(shopId, pluginId);
+
+      await createAuditLog({
+      shopId,
+      userId: req.user!.userId,
+      action: AuditAction.PLUGIN_UNINSTALLED,
+      entityType: 'plugin',
+      entityId: pluginId,
+      details: { pluginId },
+    });
 
       res.status(200).json({
         success: true,

@@ -1,4 +1,6 @@
 import { CategoriesRepository } from './categories.repository';
+import { createAuditLog } from '../../utils/audit.utils';
+import { AuditAction } from '../../enums/audit-actions.enum';
 
 const categoriesRepository = new CategoriesRepository();
 
@@ -14,14 +16,30 @@ export class CategoriesService {
     name: string;
     description?: string;
     sortOrder?: number;
-  }) {
-    return await categoriesRepository.createCategory({
+  }, userId: string) { 
+
+    // Create first!
+    const category = await categoriesRepository.createCategory({
       shopId,
       name: input.name,
       description: input.description,
       sortOrder: input.sortOrder ?? 0,
       isActive: true,
     });
+
+    // Audit Log
+    await createAuditLog({
+      shopId,
+      userId,
+      action: AuditAction.CATEGORY_CREATED,
+      entityType: 'category',
+      entityId: category.categoryId,
+      details: {
+        name: input.name,
+      },
+    });
+
+    return category;
   }
 
   // Update category
@@ -48,9 +66,12 @@ export class CategoriesService {
     );
   }
 
-  // Delete category
-  async deleteCategory(categoryId: string, shopId: string) {
-    // Check category exists
+  // Delete category 
+  async deleteCategory(
+    categoryId: string,
+    shopId: string,
+    userId: string  
+  ) {
     const existing = await categoriesRepository
       .getCategoryById(categoryId, shopId);
 
@@ -58,7 +79,6 @@ export class CategoriesService {
       throw new Error('Category not found!');
     }
 
-    // Check if products are using this category
     const productCount = await categoriesRepository
       .getProductCountByCategory(shopId, existing.name);
 
@@ -68,7 +88,23 @@ export class CategoriesService {
       );
     }
 
-    return await categoriesRepository.deleteCategory(categoryId, shopId);
+    // Delete first!
+    const result = await categoriesRepository
+      .deleteCategory(categoryId, shopId);
+
+    // Audit log
+    await createAuditLog({
+      shopId,
+      userId,
+      action: AuditAction.CATEGORY_DELETED,
+      entityType: 'category',
+      entityId: categoryId,
+      details: {
+        name: existing.name,
+      },
+    });
+
+    return result;
   }
 
   // Reorder categories
@@ -89,12 +125,8 @@ export class CategoriesService {
     shopId: string,
     businessType: string
   ) {
-    // Delete ALL existing categories first (Option B!)
     await categoriesRepository.deleteAllCategories(shopId);
-
-    // Seed fresh categories for new business type
     await categoriesRepository.seedDefaultCategories(shopId, businessType);
-
     return await categoriesRepository.getCategories(shopId);
   }
 
