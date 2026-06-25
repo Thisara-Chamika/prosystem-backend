@@ -1,12 +1,11 @@
-import { db } from '../config/database';
-import { pluginConfigurations } from '../db/schema/plugin-configurations';
-import { shops } from '../db/schema/shops';
-import { eq, and } from 'drizzle-orm';
-import { InstalledPlugin, HookContext, PluginManifest } from './types';
-import { findPlugin, AVAILABLE_PLUGINS } from './PluginRegistry';
+import { db } from "../config/database";
+import { pluginConfigurations } from "../db/schema/plugin-configurations";
+import { shops } from "../db/schema/shops";
+import { eq, and } from "drizzle-orm";
+import { InstalledPlugin, HookContext, PluginManifest } from "./types";
+import { findPlugin, AVAILABLE_PLUGINS } from "./PluginRegistry";
 
 export class PluginEngine {
-
   // In-memory cache per shop
   // Map<shopId, InstalledPlugin[]>
   private loadedPlugins: Map<string, InstalledPlugin[]> = new Map();
@@ -25,8 +24,8 @@ export class PluginEngine {
       .where(
         and(
           eq(pluginConfigurations.shopId, shopId),
-          eq(pluginConfigurations.isActive, true)
-        )
+          eq(pluginConfigurations.isActive, true),
+        ),
       );
 
     // Build InstalledPlugin objects
@@ -66,13 +65,13 @@ export class PluginEngine {
       .where(
         and(
           eq(pluginConfigurations.shopId, shopId),
-          eq(pluginConfigurations.pluginId, pluginId)
-        )
+          eq(pluginConfigurations.pluginId, pluginId),
+        ),
       )
       .limit(1);
 
     if (existing[0]?.isActive) {
-      throw new Error('Plugin already installed!');
+      throw new Error("Plugin already installed!");
     }
 
     // 3. If exists but inactive → reactivate
@@ -86,14 +85,12 @@ export class PluginEngine {
         .where(eq(pluginConfigurations.configId, existing[0].configId));
     } else {
       // 4. Save to plugin_configurations table
-      await db
-        .insert(pluginConfigurations)
-        .values({
-          shopId,
-          pluginId,
-          configuration: {},
-          isActive: true,
-        });
+      await db.insert(pluginConfigurations).values({
+        shopId,
+        pluginId,
+        configuration: {},
+        isActive: true,
+      });
     }
 
     // 5. Update shops.active_plugins array
@@ -117,10 +114,10 @@ export class PluginEngine {
     }
 
     // 6. Run onInstall hook
-    await this.runHook('onInstall', {
+    await this.runHook("onInstall", {
       shopId,
-      userId: 'system',
-      role: 'system',
+      userId: "system",
+      role: "system",
       data: { pluginId },
     });
 
@@ -140,25 +137,25 @@ export class PluginEngine {
         and(
           eq(pluginConfigurations.shopId, shopId),
           eq(pluginConfigurations.pluginId, pluginId),
-          eq(pluginConfigurations.isActive, true)
-        )
+          eq(pluginConfigurations.isActive, true),
+        ),
       )
       .limit(1);
 
     if (!existing[0]) {
-      throw new Error('Plugin not installed!');
+      throw new Error("Plugin not installed!");
     }
 
     // 2. Run onUninstall hook
     try {
-      await this.runHook('onUninstall', {
+      await this.runHook("onUninstall", {
         shopId,
-        userId: 'system',
-        role: 'system',
+        userId: "system",
+        role: "system",
         data: { pluginId },
       });
     } catch (error) {
-      console.error('onUninstall hook error:', error);
+      console.error("onUninstall hook error:", error);
     }
 
     // 3. Set is_active = false (never delete data!)
@@ -171,8 +168,8 @@ export class PluginEngine {
       .where(
         and(
           eq(pluginConfigurations.shopId, shopId),
-          eq(pluginConfigurations.pluginId, pluginId)
-        )
+          eq(pluginConfigurations.pluginId, pluginId),
+        ),
       );
 
     // 4. Remove from shops.active_plugins array
@@ -187,7 +184,7 @@ export class PluginEngine {
       await db
         .update(shops)
         .set({
-          activePlugins: currentPlugins.filter(p => p !== pluginId),
+          activePlugins: currentPlugins.filter((p) => p !== pluginId),
           updatedAt: new Date(),
         })
         .where(eq(shops.shopId, shopId));
@@ -202,15 +199,17 @@ export class PluginEngine {
   // ── RUN HOOK ──────────────────────────────────────
   async runHook(hookName: string, context: HookContext): Promise<void> {
     // Get active plugins for this shop
-    const plugins = context.shopId === 'system'
-      ? []
-      : await this.loadPluginsForShop(context.shopId);
+    const plugins =
+      context.shopId === "system"
+        ? []
+        : await this.loadPluginsForShop(context.shopId);
 
     if (plugins.length === 0) return;
 
     for (const plugin of plugins) {
       // Check if plugin has this hook
-      const hookHandler = plugin.manifest.hooks[hookName as keyof typeof plugin.manifest.hooks];
+      const hookHandler =
+        plugin.manifest.hooks[hookName as keyof typeof plugin.manifest.hooks];
       if (!hookHandler) continue;
 
       try {
@@ -220,17 +219,16 @@ export class PluginEngine {
 
         // Run the hook
         await hookModule[hookHandler](context);
-
       } catch (error) {
         // beforeCheckout errors MUST stop transaction!
-        if (hookName === 'beforeCheckout') {
+        if (hookName === "beforeCheckout") {
           throw error;
         }
 
         // afterSale errors are logged but don't fail transaction!
         console.error(
           `Hook '${hookName}' error in plugin '${plugin.pluginId}':`,
-          error
+          error,
         );
       }
     }
@@ -239,7 +237,7 @@ export class PluginEngine {
   // ── CHECK IF PLUGIN IS ACTIVE ─────────────────────
   isPluginActive(shopId: string, pluginId: string): boolean {
     const plugins = this.loadedPlugins.get(shopId) ?? [];
-    return plugins.some(p => p.pluginId === pluginId && p.isActive);
+    return plugins.some((p) => p.pluginId === pluginId && p.isActive);
   }
 
   // ── GET PLUGIN CONFIG ─────────────────────────────
@@ -250,8 +248,8 @@ export class PluginEngine {
       .where(
         and(
           eq(pluginConfigurations.shopId, shopId),
-          eq(pluginConfigurations.pluginId, pluginId)
-        )
+          eq(pluginConfigurations.pluginId, pluginId),
+        ),
       )
       .limit(1);
 
@@ -262,7 +260,7 @@ export class PluginEngine {
   async updatePluginConfig(
     shopId: string,
     pluginId: string,
-    config: any
+    config: any,
   ): Promise<void> {
     await db
       .update(pluginConfigurations)
@@ -273,8 +271,8 @@ export class PluginEngine {
       .where(
         and(
           eq(pluginConfigurations.shopId, shopId),
-          eq(pluginConfigurations.pluginId, pluginId)
-        )
+          eq(pluginConfigurations.pluginId, pluginId),
+        ),
       );
 
     // Clear memory cache
@@ -284,7 +282,9 @@ export class PluginEngine {
   // ── LOAD HOOK MODULE ──────────────────────────────
   private async loadHookModule(pluginId: string): Promise<any> {
     try {
-      const module = await import(`./plugins/${pluginId}/hooks/index`);
+      const module = await import(
+        `${process.cwd()}/src/plugins/${pluginId}/hooks/index`
+      );
       return module;
     } catch (error) {
       console.warn(`No hooks found for plugin '${pluginId}'`);

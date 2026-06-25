@@ -8,3 +8,4 @@ export * from './returns';
 export * from './audit-logs';
 export * from './categories';
 export * from './plugin-configurations';
+export * from './product-variants';
