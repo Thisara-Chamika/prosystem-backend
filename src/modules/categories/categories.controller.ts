@@ -28,9 +28,11 @@ export class CategoriesController {
   async createCategory(req: Request, res: Response): Promise<void> {
     try {
       const shopId = req.user!.shopId!;
+      const userId = req.user!.userId;
       const data = await categoriesService.createCategory(
         shopId,
-        req.body
+        req.body,
+        userId
       );
 
       res.status(201).json({
@@ -77,9 +79,10 @@ export class CategoriesController {
   async deleteCategory(req: Request, res: Response): Promise<void> {
     try {
       const shopId = req.user!.shopId!;
+      const userId = req.user!.userId;
       const { categoryId } = req.params;
 
-      await categoriesService.deleteCategory(categoryId, shopId);
+      await categoriesService.deleteCategory(categoryId, shopId, userId);
 
       res.status(200).json({
         success: true,

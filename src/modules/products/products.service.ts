@@ -1,16 +1,30 @@
-import { ProductsRepository } from './products.repository';
-import { CreateProductInput, UpdateProductInput, ProductFilters } from './products.types';
+import { ProductsRepository } from "./products.repository";
+import {
+  CreateProductInput,
+  UpdateProductInput,
+  ProductFilters,
+} from "./products.types";
+import { createAuditLog } from "../../utils/audit.utils";
+import { AuditAction } from "../../enums/audit-actions.enum";
 
 const productsRepository = new ProductsRepository();
 
 export class ProductsService {
-
   // Create product
-  async createProduct(input: CreateProductInput, shopId: string, userId: string) {
+  async createProduct(
+    input: CreateProductInput,
+    shopId: string,
+    userId: string,
+  ) {
     // Check if SKU already exists in this shop
-    const existingProduct = await productsRepository.getProductBySku(input.sku, shopId);
+    const existingProduct = await productsRepository.getProductBySku(
+      input.sku,
+      shopId,
+    );
     if (existingProduct) {
-      throw new Error(`Product with SKU '${input.sku}' already exists in this shop`);
+      throw new Error(
+        `Product with SKU '${input.sku}' already exists in this shop`,
+      );
     }
 
     const { initialStock, ...productData } = input;
@@ -24,35 +38,55 @@ export class ProductsService {
         taxRate: input.taxRate ? String(input.taxRate) : undefined,
       },
       initialStock ?? 0,
-      userId
+      userId,
     );
+
+    // Audit log
+    await createAuditLog({
+      shopId,
+      userId,
+      action: AuditAction.PRODUCT_CREATED,
+      entityType: "product",
+      entityId: product.productId,
+      details: {
+        name: input.name,
+        sku: input.sku,
+        price: input.price,
+        productType: input.productType ?? "product",
+      },
+    });
 
     return product;
   }
 
   // Get all products
   async getProducts(shopId: string, filters: ProductFilters) {
-  if (filters.include === 'inventory') {
-    return await productsRepository.getProductsWithInventory(shopId, filters);
+    if (filters.include === "inventory") {
+      return await productsRepository.getProductsWithInventory(shopId, filters);
+    }
+    return await productsRepository.getProducts(shopId, filters);
   }
-  return await productsRepository.getProducts(shopId, filters);
-}
 
   // Get single product
   async getProductById(productId: string, shopId: string) {
     const product = await productsRepository.getProductById(productId, shopId);
     if (!product) {
-      throw new Error('Product not found');
+      throw new Error("Product not found");
     }
     return product;
   }
 
   // Update product
-  async updateProduct(productId: string, shopId: string, input: UpdateProductInput, userId: string) {
+  async updateProduct(
+    productId: string,
+    shopId: string,
+    input: UpdateProductInput,
+    userId: string,
+  ) {
     // Check product exists
     const existing = await productsRepository.getProductById(productId, shopId);
     if (!existing) {
-      throw new Error('Product not found');
+      throw new Error("Product not found");
     }
 
     const updated = await productsRepository.updateProduct(
@@ -64,8 +98,20 @@ export class ProductsService {
         cost: input.cost ? String(input.cost) : undefined,
         taxRate: input.taxRate ? String(input.taxRate) : undefined,
       },
-      userId
+      userId,
     );
+
+    // Audit log
+    await createAuditLog({
+      shopId,
+      userId,
+      action: AuditAction.PRODUCT_UPDATED,
+      entityType: "product",
+      entityId: productId,
+      details: {
+        changes: input,
+      },
+    });
 
     return updated;
   }
@@ -74,20 +120,42 @@ export class ProductsService {
   async deleteProduct(productId: string, shopId: string, userId: string) {
     const existing = await productsRepository.getProductById(productId, shopId);
     if (!existing) {
-      throw new Error('Product not found');
+      throw new Error("Product not found");
     }
 
-    return await productsRepository.deleteProduct(productId, shopId, userId);
+    const result = await productsRepository.deleteProduct(
+      productId,
+      shopId,
+      userId,
+    );
+
+    // Audit log
+    await createAuditLog({
+      shopId,
+      userId,
+      action: AuditAction.PRODUCT_DELETED,
+      entityType: "product",
+      entityId: productId,
+      details: {
+        name: existing.name,
+        sku: existing.sku,
+      },
+    });
+
+    return result;
   }
 
   // Get product with inventory
   async getProductWithInventory(productId: string, shopId: string) {
     const product = await productsRepository.getProductById(productId, shopId);
     if (!product) {
-      throw new Error('Product not found');
+      throw new Error("Product not found");
     }
 
-    const inventoryData = await productsRepository.getProductInventory(productId, shopId);
+    const inventoryData = await productsRepository.getProductInventory(
+      productId,
+      shopId,
+    );
 
     return {
       ...product,
@@ -96,12 +164,35 @@ export class ProductsService {
   }
 
   // Update inventory
-  async updateInventory(productId: string, shopId: string, quantity: number, userId: string) {
+  async updateInventory(
+    productId: string,
+    shopId: string,
+    quantity: number,
+    userId: string,
+  ) {
     const product = await productsRepository.getProductById(productId, shopId);
     if (!product) {
-      throw new Error('Product not found');
+      throw new Error("Product not found");
     }
 
-    return await productsRepository.updateInventory(productId, shopId, quantity, userId);
+    // Audit log
+    await createAuditLog({
+      shopId,
+      userId,
+      action: AuditAction.INVENTORY_ADJUSTED,
+      entityType: "inventory",
+      entityId: productId,
+      details: {
+        productId,
+        newQuantity: quantity,
+      },
+    });
+
+    return await productsRepository.updateInventory(
+      productId,
+      shopId,
+      quantity,
+      userId,
+    );
   }
 }
