@@ -2,6 +2,7 @@ import { PosRepository } from "./pos.repository";
 import { CreateTransactionInput, TransactionFilters } from "./pos.types";
 import { ProductsRepository } from "../products/products.repository";
 import { pluginEngine } from "../../plugins/PluginEngine";
+import { loyaltyService } from '../loyalty/loyalty.service';
 
 const posRepository = new PosRepository();
 const productsRepository = new ProductsRepository();
@@ -128,6 +129,24 @@ export class PosService {
       // afterSale errors NEVER crash the transaction!
       console.error("afterSale hook error:", error);
     }
+
+    // ── Earn loyalty points if customer attached ──────
+if (input.customerId) {
+  try {
+    await loyaltyService.earnPoints(
+      input.customerId,
+      shopId,
+      result.transaction.transactionId,
+      parseFloat(result.transaction.total)
+    );
+  } catch (error) {
+    // Never crash transaction for loyalty errors!
+    console.error('Loyalty earn points error:', error);
+  }
+}
+// ─────────────────────────────────────────────────
+
+return result;
 
     return result;
   }

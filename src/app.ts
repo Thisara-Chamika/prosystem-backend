@@ -17,6 +17,7 @@ import inventoryRoutes from './modules/inventory/inventory.routes';
 import pluginsRoutes from './modules/plugins/plugins.routes';
 import fashionRoutes from './plugins/fashion-shop/fashion.routes';
 import auditLogsRoutes from './modules/audit-logs/audit-logs.routes';
+import loyaltyRoutes from './modules/loyalty/loyalty.routes';
 
 // Load environment variables
 dotenv.config();
@@ -64,6 +65,7 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/plugins', pluginsRoutes);
 app.use('/api/plugins/fashion', fashionRoutes);
 app.use('/api/audit-logs', auditLogsRoutes);
+app.use('/api/loyalty', loyaltyRoutes);
 // ─── Health Check Route ───────────────────────
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
