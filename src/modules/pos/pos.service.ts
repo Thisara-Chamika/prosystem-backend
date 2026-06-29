@@ -1,6 +1,8 @@
 import { PosRepository } from "./pos.repository";
 import { CreateTransactionInput, TransactionFilters } from "./pos.types";
 import { ProductsRepository } from "../products/products.repository";
+import { pluginEngine } from "../../plugins/PluginEngine";
+import { loyaltyService } from '../loyalty/loyalty.service';
 
 const posRepository = new PosRepository();
 const productsRepository = new ProductsRepository();
@@ -11,6 +13,7 @@ export class PosService {
     input: CreateTransactionInput,
     shopId: string,
     userId: string,
+    role: string = "cashier",
   ) {
     // 1. Validate all items and calculate totals
     let subtotal = 0;
@@ -74,6 +77,18 @@ export class PosService {
     const tax = totalTax;
     const total = subtotal - discount + tax;
 
+    // ── beforeCheckout hook ───────────────────────────
+    await pluginEngine.runHook("beforeCheckout", {
+      shopId,
+      userId,
+      role,
+      data: {
+        items: itemsToCreate,
+        customerId: input.customerId,
+        discount: input.discount,
+      },
+    });
+
     // 3. Generate transaction number
     const transactionNumber =
       await posRepository.generateTransactionNumber(shopId);
@@ -99,7 +114,58 @@ export class PosService {
       itemsToCreate,
     );
 
-    return result;
+    // ── afterSale hook ────────────────────────────────
+    try {
+      await pluginEngine.runHook("afterSale", {
+        shopId,
+        userId,
+        role,
+        data: {
+          transaction: result.transaction,
+          items: result.items,
+        },
+      });
+    } catch (error) {
+      // afterSale errors NEVER crash the transaction!
+      console.error("afterSale hook error:", error);
+    }
+
+    // ── Earn loyalty points if customer attached ──────
+// ── Loyalty & CRM (after transaction saved) ───────
+if (input.customerId) {
+  try {
+    // 1. Always update CRM stats
+    await loyaltyService.updateCustomerStats(
+      input.customerId,
+      shopId,
+      parseFloat(result.transaction.total)
+    );
+
+    // 2. Redeem points FIRST if requested
+    if (input.pointsToRedeem && input.pointsToRedeem > 0) {
+      await loyaltyService.redeemPointsForTransaction(
+        input.customerId,
+        shopId,
+        input.pointsToRedeem,
+        result.transaction.transactionId
+      );
+    }
+
+    // 3. Earn points on final total (after discount)
+    await loyaltyService.earnPoints(
+      input.customerId,
+      shopId,
+      result.transaction.transactionId,
+      parseFloat(result.transaction.total)
+    );
+
+  } catch (error) {
+    // Never crash transaction for loyalty errors!
+    console.error('Loyalty/CRM error:', error);
+  }
+}
+
+return result;
   }
 
   // Get all transactions

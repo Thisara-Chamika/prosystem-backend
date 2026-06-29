@@ -1,6 +1,7 @@
 export const AuditAction = {
   // Auth actions
   LOGIN: 'LOGIN',
+  LOGIN_SUCCESS: 'LOGIN_SUCCESS',
   LOGOUT: 'LOGOUT',
 
   // Return actions
@@ -14,7 +15,19 @@ export const AuditAction = {
 
   // Product actions
   PRODUCT_CREATED: 'PRODUCT_CREATED',
+  PRODUCT_UPDATED: 'PRODUCT_UPDATED',
   PRODUCT_DELETED: 'PRODUCT_DELETED',
+
+  // Inventory
+  INVENTORY_ADJUSTED: 'INVENTORY_ADJUSTED',
+
+  // Categories 
+  CATEGORY_CREATED: 'CATEGORY_CREATED',
+  CATEGORY_DELETED: 'CATEGORY_DELETED',
+
+  // Plugins 
+  PLUGIN_INSTALLED: 'PLUGIN_INSTALLED',
+  PLUGIN_UNINSTALLED: 'PLUGIN_UNINSTALLED',
 
   // Transaction actions
   TRANSACTION_CREATED: 'TRANSACTION_CREATED',
