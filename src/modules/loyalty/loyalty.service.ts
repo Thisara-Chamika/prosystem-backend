@@ -19,7 +19,6 @@ export class LoyaltyService {
   async getSettings(shopId: string) {
     const settings = await loyaltyRepository.getSettings(shopId);
 
-    // Return defaults if not configured yet
     if (!settings) {
       return {
         ...DEFAULT_SETTINGS,
@@ -48,7 +47,6 @@ export class LoyaltyService {
     silverThreshold?: number;
     goldThreshold?: number;
   }) {
-    // Validate thresholds
     if (input.silverThreshold && input.goldThreshold) {
       if (input.silverThreshold >= input.goldThreshold) {
         throw new Error(
@@ -81,6 +79,30 @@ export class LoyaltyService {
     return Math.floor(amount / 100 * settings.pointsPer100);
   }
 
+  // ── UPDATE CRM STATS (always, regardless of loyalty) ──
+
+  async updateCustomerStats(
+    customerId: string,
+    shopId: string,
+    purchaseAmount: number
+  ): Promise<void> {
+    const customer = await loyaltyRepository
+      .getCustomerById(customerId, shopId);
+    if (!customer) return;
+
+    const currentSpent = parseFloat(
+      customer.totalSpent?.toString() ?? '0'
+    );
+
+    await loyaltyRepository.updateCustomerLoyalty(customerId, {
+      pointsBalance: customer.pointsBalance,
+      totalPointsEarned: customer.totalPointsEarned,
+      loyaltyTier: customer.loyaltyTier,
+      totalSpent: currentSpent + purchaseAmount,
+      incrementVisit: true,
+    });
+  }
+
   // ── EARN POINTS ───────────────────────────────────
 
   async earnPoints(
@@ -88,32 +110,27 @@ export class LoyaltyService {
     shopId: string,
     transactionId: string,
     purchaseAmount: number
-  ): Promise<void> {
+  ): Promise<number> {
     const settings = await this.getSettings(shopId);
-    if (!settings.isEnabled) return;
+    if (!settings.isEnabled) return 0;
 
     const points = this.calculatePointsEarned(purchaseAmount, settings);
-    if (points === 0) return;
+    if (points === 0) return 0;
 
     const customer = await loyaltyRepository
       .getCustomerById(customerId, shopId);
-    if (!customer) return;
+    if (!customer) return 0;
 
     const balanceBefore = customer.pointsBalance;
     const balanceAfter = balanceBefore + points;
     const totalPointsEarned = customer.totalPointsEarned + points;
     const newTier = this.calculateTier(totalPointsEarned, settings);
-    const currentSpent = parseFloat(
-      customer.totalSpent?.toString() ?? '0'
-    );
 
-    // Update customer
+    // Update customer loyalty only (CRM stats updated separately!)
     await loyaltyRepository.updateCustomerLoyalty(customerId, {
       pointsBalance: balanceAfter,
       totalPointsEarned,
       loyaltyTier: newTier,
-      totalSpent: currentSpent + purchaseAmount,
-      incrementVisit: true,
     });
 
     // Record loyalty transaction
@@ -127,9 +144,11 @@ export class LoyaltyService {
       balanceAfter,
       description: `Purchase ${transactionId}`,
     });
+
+    return points; // ← return points earned for success message!
   }
 
-  // ── REDEEM POINTS ─────────────────────────────────
+  // ── REDEEM POINTS (standalone endpoint) ───────────
 
   async redeemPoints(
     customerId: string,
@@ -148,35 +167,30 @@ export class LoyaltyService {
       throw new Error('Customer not found!');
     }
 
-    // Validate points balance
     if (customer.pointsBalance < pointsToRedeem) {
       throw new Error(
         `Insufficient points balance! Available: ${customer.pointsBalance}`
       );
     }
 
-    // Validate multiples
     if (pointsToRedeem % settings.pointsToRedeem !== 0) {
       throw new Error(
         `Points must be redeemed in multiples of ${settings.pointsToRedeem}!`
       );
     }
 
-    // Calculate discount
     const discountAmount = (pointsToRedeem / settings.pointsToRedeem)
       * settings.redeemValue;
 
     const balanceBefore = customer.pointsBalance;
     const balanceAfter = balanceBefore - pointsToRedeem;
 
-    // Update customer balance
     await loyaltyRepository.updateCustomerLoyalty(customerId, {
       pointsBalance: balanceAfter,
       totalPointsEarned: customer.totalPointsEarned,
       loyaltyTier: customer.loyaltyTier,
     });
 
-    // Record loyalty transaction
     await loyaltyRepository.createLoyaltyTransaction({
       shopId,
       customerId,
@@ -187,10 +201,59 @@ export class LoyaltyService {
       description: `Redeemed ${pointsToRedeem} points for discount`,
     });
 
-    return {
-      discountAmount,
-      newBalance: balanceAfter,
-    };
+    return { discountAmount, newBalance: balanceAfter };
+  }
+
+  // ── REDEEM POINTS FOR TRANSACTION (POS flow) ──────
+  // Called INSIDE transaction creation — linked to transactionId!
+
+  async redeemPointsForTransaction(
+    customerId: string,
+    shopId: string,
+    pointsToRedeem: number,
+    transactionId: string
+  ): Promise<void> {
+    const settings = await this.getSettings(shopId);
+    if (!settings.isEnabled) return;
+
+    const customer = await loyaltyRepository
+      .getCustomerById(customerId, shopId);
+    if (!customer) return;
+
+    // Validate
+    if (customer.pointsBalance < pointsToRedeem) {
+      throw new Error(
+        `Insufficient points! Available: ${customer.pointsBalance}`
+      );
+    }
+
+    if (pointsToRedeem % settings.pointsToRedeem !== 0) {
+      throw new Error(
+        `Points must be redeemed in multiples of ${settings.pointsToRedeem}!`
+      );
+    }
+
+    const balanceBefore = customer.pointsBalance;
+    const balanceAfter = balanceBefore - pointsToRedeem;
+
+    // Update balance
+    await loyaltyRepository.updateCustomerLoyalty(customerId, {
+      pointsBalance: balanceAfter,
+      totalPointsEarned: customer.totalPointsEarned,
+      loyaltyTier: customer.loyaltyTier,
+    });
+
+    // Record linked to transaction
+    await loyaltyRepository.createLoyaltyTransaction({
+      shopId,
+      customerId,
+      transactionId,  // ← linked to POS transaction!
+      type: 'redeem',
+      points: -pointsToRedeem,
+      balanceBefore,
+      balanceAfter,
+      description: `Redeemed ${pointsToRedeem} points at checkout`,
+    });
   }
 
   // ── CUSTOMER PROFILE ──────────────────────────────
@@ -245,16 +308,26 @@ export class LoyaltyService {
     settings: typeof DEFAULT_SETTINGS
   ) {
     if (totalPointsEarned >= settings.goldThreshold) {
-      return { tier: 'gold', pointsNeeded: 0, message: 'Maximum tier reached!' };
+      return {
+        tier: 'gold',
+        pointsNeeded: 0,
+        message: 'Maximum tier reached!',
+      };
     }
     if (totalPointsEarned >= settings.silverThreshold) {
       const needed = settings.goldThreshold - totalPointsEarned;
-      return { tier: 'gold', pointsNeeded: needed,
-        message: `${needed} more points to Gold!` };
+      return {
+        tier: 'gold',
+        pointsNeeded: needed,
+        message: `${needed} more points to Gold!`,
+      };
     }
     const needed = settings.silverThreshold - totalPointsEarned;
-    return { tier: 'silver', pointsNeeded: needed,
-      message: `${needed} more points to Silver!` };
+    return {
+      tier: 'silver',
+      pointsNeeded: needed,
+      message: `${needed} more points to Silver!`,
+    };
   }
 }
 

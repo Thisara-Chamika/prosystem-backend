@@ -131,24 +131,41 @@ export class PosService {
     }
 
     // ── Earn loyalty points if customer attached ──────
+// ── Loyalty & CRM (after transaction saved) ───────
 if (input.customerId) {
   try {
+    // 1. Always update CRM stats
+    await loyaltyService.updateCustomerStats(
+      input.customerId,
+      shopId,
+      parseFloat(result.transaction.total)
+    );
+
+    // 2. Redeem points FIRST if requested
+    if (input.pointsToRedeem && input.pointsToRedeem > 0) {
+      await loyaltyService.redeemPointsForTransaction(
+        input.customerId,
+        shopId,
+        input.pointsToRedeem,
+        result.transaction.transactionId
+      );
+    }
+
+    // 3. Earn points on final total (after discount)
     await loyaltyService.earnPoints(
       input.customerId,
       shopId,
       result.transaction.transactionId,
       parseFloat(result.transaction.total)
     );
+
   } catch (error) {
     // Never crash transaction for loyalty errors!
-    console.error('Loyalty earn points error:', error);
+    console.error('Loyalty/CRM error:', error);
   }
 }
-// ─────────────────────────────────────────────────
 
 return result;
-
-    return result;
   }
 
   // Get all transactions
