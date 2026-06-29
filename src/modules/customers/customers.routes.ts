@@ -2,9 +2,11 @@ import { Router } from 'express';
 import { CustomersController } from './customers.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { authorize } from '../../middlewares/auth.middleware';
+import { LoyaltyController } from '../loyalty/loyalty.controller';
 
 const router = Router();
 const customersController = new CustomersController();
+const loyaltyController = new LoyaltyController();
 
 // All routes require authentication
 router.use(authenticate);
@@ -13,6 +15,18 @@ router.use(authenticate);
 router.get(
   '/',
   customersController.getCustomers.bind(customersController)
+);
+
+// Get customer profile
+router.get(
+  '/:customerId/profile',
+  loyaltyController.getCustomerProfile.bind(loyaltyController)
+);
+
+// Get customer loyalty
+router.get(
+  '/:customerId/loyalty',
+  loyaltyController.getCustomerLoyalty.bind(loyaltyController)
 );
 
 // Get single customer

@@ -3,6 +3,7 @@ export interface CreateTransactionInput {
   items: TransactionItemInput[];
   paymentMethod: 'cash' | 'card' | 'online' | 'mixed';
   discount?: number;
+  pointsToRedeem?: number; 
   notes?: string;
 }
 

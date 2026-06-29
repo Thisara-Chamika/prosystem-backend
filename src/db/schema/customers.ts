@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, decimal, integer } from 'drizzle-orm/pg-core';
 import { shops } from './shops';
 import { users } from './users';
 
@@ -22,6 +22,28 @@ export const customers = pgTable('customers', {
   phone: varchar('phone', { length: 20 }),
 
   address: varchar('address', { length: 500 }),
+
+  pointsBalance: integer('points_balance')
+    .notNull()
+    .default(0),
+
+totalPointsEarned: integer('total_points_earned')
+    .notNull()
+    .default(0),
+
+loyaltyTier: varchar('loyalty_tier', { length: 20 })
+    .notNull()
+    .default('bronze'),
+
+totalSpent: decimal('total_spent', { precision: 10, scale: 2 })
+    .notNull()
+    .default('0'),
+
+totalVisits: integer('total_visits')
+    .notNull()
+    .default(0),
+
+lastVisit: timestamp('last_visit', { mode: 'date' }),
 
   createdAt: timestamp('created_at', { mode: 'date' })
     .defaultNow()

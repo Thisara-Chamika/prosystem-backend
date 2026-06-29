@@ -9,3 +9,5 @@ export * from './audit-logs';
 export * from './categories';
 export * from './plugin-configurations';
 export * from './product-variants';
+export * from './loyalty-settings';
+export * from './loyalty-transactions';
