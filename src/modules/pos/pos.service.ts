@@ -2,10 +2,13 @@ import { PosRepository } from "./pos.repository";
 import { CreateTransactionInput, TransactionFilters } from "./pos.types";
 import { ProductsRepository } from "../products/products.repository";
 import { pluginEngine } from "../../plugins/PluginEngine";
-import { loyaltyService } from '../loyalty/loyalty.service';
+import { loyaltyService } from "../loyalty/loyalty.service";
+import { emailService } from "../../services/EmailService";
+import { ShopsRepository } from "../shops/shops.repository";
 
 const posRepository = new PosRepository();
 const productsRepository = new ProductsRepository();
+const shopsRepository = new ShopsRepository();
 
 export class PosService {
   // Create transaction (main POS operation)
@@ -131,41 +134,78 @@ export class PosService {
     }
 
     // ── Earn loyalty points if customer attached ──────
-// ── Loyalty & CRM (after transaction saved) ───────
-if (input.customerId) {
-  try {
-    // 1. Always update CRM stats
-    await loyaltyService.updateCustomerStats(
-      input.customerId,
-      shopId,
-      parseFloat(result.transaction.total)
-    );
+    // ── Loyalty & CRM (after transaction saved) ───────
+    if (input.customerId) {
+      try {
+        // 1. Always update CRM stats
+        await loyaltyService.updateCustomerStats(
+          input.customerId,
+          shopId,
+          parseFloat(result.transaction.total),
+        );
 
-    // 2. Redeem points FIRST if requested
-    if (input.pointsToRedeem && input.pointsToRedeem > 0) {
-      await loyaltyService.redeemPointsForTransaction(
-        input.customerId,
-        shopId,
-        input.pointsToRedeem,
-        result.transaction.transactionId
-      );
+        // 2. Redeem points FIRST if requested
+        if (input.pointsToRedeem && input.pointsToRedeem > 0) {
+          await loyaltyService.redeemPointsForTransaction(
+            input.customerId,
+            shopId,
+            input.pointsToRedeem,
+            result.transaction.transactionId,
+          );
+        }
+
+        // 3. Earn points on final total (after discount)
+        await loyaltyService.earnPoints(
+          input.customerId,
+          shopId,
+          result.transaction.transactionId,
+          parseFloat(result.transaction.total),
+        );
+      } catch (error) {
+        // Never crash transaction for loyalty errors!
+        console.error("Loyalty/CRM error:", error);
+      }
     }
 
-    // 3. Earn points on final total (after discount)
-    await loyaltyService.earnPoints(
-      input.customerId,
-      shopId,
-      result.transaction.transactionId,
-      parseFloat(result.transaction.total)
-    );
+    // ── Send receipt email (never breaks transaction!) ──
+    if (input.customerId) {
+      try {
+        const customer = await posRepository.getCustomerById(
+          input.customerId,
+          shopId,
+        );
+        const shop = await shopsRepository.getShopById(shopId);
 
-  } catch (error) {
-    // Never crash transaction for loyalty errors!
-    console.error('Loyalty/CRM error:', error);
-  }
-}
+        const prefs = (shop?.configuration as any)?.emailNotifications ?? {};
 
-return result;
+        if (customer?.email && prefs.receiptEmails !== false) {
+          await emailService
+            .sendReceiptEmail({
+              to: customer.email,
+              customerName: customer.firstName,
+              shopName: shop?.name ?? "Shop",
+              transactionNumber: result.transaction.transactionNumber,
+              items: result.items.map((i) => ({
+                name: i.productName,
+                quantity: i.quantity,
+                total: parseFloat(i.total),
+              })),
+              subtotal: parseFloat(result.transaction.subtotal),
+              tax: parseFloat(result.transaction.tax),
+              discount: parseFloat(result.transaction.discount),
+              total: parseFloat(result.transaction.total),
+              currency: shop?.currency ?? "USD",
+            })
+            .catch((err) => {
+              console.error("Failed to send receipt email:", err);
+            });
+        }
+      } catch (error) {
+        console.error("Receipt email error:", error);
+      }
+    }
+
+    return result;
   }
 
   // Get all transactions

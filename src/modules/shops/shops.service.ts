@@ -13,6 +13,7 @@ import {
 import { createAuditLog } from '../../utils/audit.utils';
 import { AuditAction } from '../../enums/audit-actions.enum';
 import { CategoriesService } from '../categories/categories.service';
+import { emailService } from '../../services/EmailService';
 
 const shopsRepository = new ShopsRepository();
 
@@ -205,10 +206,35 @@ export class ShopsService {
   }
 
   async completeOnboarding(shopId: string) {
-    const shop = await shopsRepository.completeOnboarding(shopId);
-    if (!shop) {
-      throw new Error('Shop not found!');
-    }
-    return shop;
+  const shop = await shopsRepository.completeOnboarding(shopId);
+  if (!shop) {
+    throw new Error('Shop not found!');
   }
+
+  // ── Send shop welcome email (only once!) ──────────
+  if (!shop.welcomeEmailSent) {
+    try {
+      await shopsRepository.markWelcomeEmailSent(shopId);
+
+      const owner = await shopsRepository.getShopOwner(shopId);
+
+      if (owner?.email) {
+        const businessType = (shop.activePlugins as string[])?.[0] ?? 'general';
+
+        await emailService.sendShopWelcomeEmail({
+          to: owner.email,
+          ownerName: owner.firstName,
+          shopName: shop.name,
+          businessType,
+        }).catch(err => {
+          console.error('Failed to send shop welcome email:', err);
+        });
+      }
+    } catch (error) {
+      console.error('Shop welcome email error:', error);
+    }
+  }
+
+  return shop;
+}
 }

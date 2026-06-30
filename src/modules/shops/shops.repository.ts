@@ -1,9 +1,9 @@
-import { db } from '../../config/database';
-import { shops } from '../../db/schema/shops';
-import { eq } from 'drizzle-orm';
+import { db } from "../../config/database";
+import { shops } from "../../db/schema/shops";
+import { eq, and } from "drizzle-orm";
+import { users } from "../../db/schema/users";
 
 export class ShopsRepository {
-
   // Get shop by ID
   async getShopById(shopId: string) {
     const result = await db
@@ -30,7 +30,7 @@ export class ShopsRepository {
   }
 
   // Update plugin (add or remove)
-  async updatePlugin(shopId: string, plugin: string, action: 'add' | 'remove') {
+  async updatePlugin(shopId: string, plugin: string, action: "add" | "remove") {
     // Get current shop
     const shop = await this.getShopById(shopId);
     if (!shop) return null;
@@ -39,7 +39,7 @@ export class ShopsRepository {
 
     let updatedPlugins: string[];
 
-    if (action === 'add') {
+    if (action === "add") {
       // Add plugin if not already exists
       if (currentPlugins.includes(plugin)) {
         return shop; // Already exists — return as is
@@ -47,7 +47,7 @@ export class ShopsRepository {
       updatedPlugins = [...currentPlugins, plugin];
     } else {
       // Remove plugin — but never remove business template!
-      updatedPlugins = currentPlugins.filter(p => p !== plugin);
+      updatedPlugins = currentPlugins.filter((p) => p !== plugin);
     }
 
     const result = await db
@@ -103,16 +103,39 @@ export class ShopsRepository {
   }
 
   // Complete onboarding
-async completeOnboarding(shopId: string) {
-  const result = await db
-    .update(shops)
-    .set({
-      isOnboarded: true,
-      updatedAt: new Date(),
-    })
-    .where(eq(shops.shopId, shopId))
-    .returning();
+  async completeOnboarding(shopId: string) {
+    const result = await db
+      .update(shops)
+      .set({
+        isOnboarded: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(shops.shopId, shopId))
+      .returning();
 
-  return result[0] ?? null;
-}
+    return result[0] ?? null;
+  }
+
+  // Mark welcome email as sent
+  async markWelcomeEmailSent(shopId: string) {
+    await db
+      .update(shops)
+      .set({
+        welcomeEmailSent: true,
+        onboardingCompleted: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(shops.shopId, shopId));
+  }
+
+  // Get shop owner
+  async getShopOwner(shopId: string) {
+    const result = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.shopId, shopId), eq(users.role, "shop_owner" as any)))
+      .limit(1);
+
+    return result[0] ?? null;
+  }
 }
