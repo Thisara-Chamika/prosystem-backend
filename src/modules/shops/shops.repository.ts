@@ -138,4 +138,43 @@ export class ShopsRepository {
 
     return result[0] ?? null;
   }
+
+  // Check if low stock alert already sent today
+async getLastLowStockAlertSent(shopId: string) {
+  const result = await db
+    .select({ lastLowStockAlertSent: shops.lastLowStockAlertSent })
+    .from(shops)
+    .where(eq(shops.shopId, shopId))
+    .limit(1);
+
+  return result[0]?.lastLowStockAlertSent ?? null;
+}
+
+// Mark low stock alert as sent
+async markLowStockAlertSent(shopId: string) {
+  await db
+    .update(shops)
+    .set({
+      lastLowStockAlertSent: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(shops.shopId, shopId));
+}
+
+// Get owner and managers for shop
+async getOwnerAndManagers(shopId: string) {
+  const result = await db
+    .select()
+    .from(users)
+    .where(
+      and(
+        eq(users.shopId, shopId),
+        eq(users.isActive, true)
+      )
+    );
+
+  return result.filter(u =>
+    u.role === 'shop_owner' || u.role === 'shop_manager'
+  );
+}
 }

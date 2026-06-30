@@ -64,4 +64,18 @@ router.post(
   shopsController.completeOnboarding.bind(shopsController)
 );
 
+// Get email preferences
+router.get(
+  '/email-preferences',
+  authorize('shop_owner'),
+  shopsController.getEmailPreferences.bind(shopsController)
+);
+
+// Update email preferences
+router.put(
+  '/email-preferences',
+  authorize('shop_owner'),
+  shopsController.updateEmailPreferences.bind(shopsController)
+);
+
 export default router;

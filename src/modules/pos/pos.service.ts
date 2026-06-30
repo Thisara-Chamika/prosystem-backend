@@ -5,6 +5,7 @@ import { pluginEngine } from "../../plugins/PluginEngine";
 import { loyaltyService } from "../loyalty/loyalty.service";
 import { emailService } from "../../services/EmailService";
 import { ShopsRepository } from "../shops/shops.repository";
+import { checkAndSendLowStockAlerts } from "../../utils/low-stock-alert.utils";
 
 const posRepository = new PosRepository();
 const productsRepository = new ProductsRepository();
@@ -132,6 +133,11 @@ export class PosService {
       // afterSale errors NEVER crash the transaction!
       console.error("afterSale hook error:", error);
     }
+
+    // ── Check low stock and send alerts ───────────────
+    checkAndSendLowStockAlerts(shopId).catch((err) => {
+      console.error("Low stock alert error:", err);
+    });
 
     // ── Earn loyalty points if customer attached ──────
     // ── Loyalty & CRM (after transaction saved) ───────
