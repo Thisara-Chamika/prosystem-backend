@@ -1,8 +1,15 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// ── Gmail SMTP Transporter ────────────────────────
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
 
-const FROM_EMAIL = 'ProSystem <onboarding@resend.dev>';
+const FROM_EMAIL = `ProSystem <${process.env.GMAIL_USER}>`;
 
 interface ReceiptEmailData {
   to: string;
@@ -49,7 +56,7 @@ export class EmailService {
 
   // ── 1. RECEIPT EMAIL ──────────────────────────────
   async sendReceiptEmail(data: ReceiptEmailData) {
-    await resend.emails.send({
+    await transporter.sendMail({
       from: FROM_EMAIL,
       to: data.to,
       subject: `Receipt from ${data.shopName} - ${data.transactionNumber}`,
@@ -59,7 +66,7 @@ export class EmailService {
 
   // ── 2. LOW STOCK ALERT ────────────────────────────
   async sendLowStockAlert(data: LowStockAlertData) {
-    await resend.emails.send({
+    await transporter.sendMail({
       from: FROM_EMAIL,
       to: data.to,
       subject: `Low Stock Alert - ${data.shopName}`,
@@ -69,7 +76,7 @@ export class EmailService {
 
   // ── 3. CUSTOMER WELCOME ───────────────────────────
   async sendCustomerWelcomeEmail(data: CustomerWelcomeData) {
-    await resend.emails.send({
+    await transporter.sendMail({
       from: FROM_EMAIL,
       to: data.to,
       subject: `Welcome to ${data.shopName}!`,
@@ -79,7 +86,7 @@ export class EmailService {
 
   // ── 4. SHOP WELCOME ───────────────────────────────
   async sendShopWelcomeEmail(data: ShopWelcomeData) {
-    await resend.emails.send({
+    await transporter.sendMail({
       from: FROM_EMAIL,
       to: data.to,
       subject: `Welcome to ProSystem, ${data.shopName}!`,
@@ -89,7 +96,7 @@ export class EmailService {
 
   // ── 5. STAFF WELCOME ──────────────────────────────
   async sendStaffWelcomeEmail(data: StaffWelcomeData) {
-    await resend.emails.send({
+    await transporter.sendMail({
       from: FROM_EMAIL,
       to: data.to,
       subject: `You've been added to ${data.shopName}`,
@@ -113,13 +120,10 @@ export class EmailService {
       <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #ffffff;">
         <h2 style="color: #1a1a1a; margin-bottom: 4px;">${data.shopName}</h2>
         <p style="color: #666; margin-top: 0;">Receipt #${data.transactionNumber}</p>
-
         <p style="color: #333;">Hi ${data.customerName}, thank you for your purchase!</p>
-
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
           ${itemRows}
         </table>
-
         <table style="width: 100%; border-top: 1px solid #e5e5e5; padding-top: 12px;">
           <tr>
             <td style="padding: 4px 0; color: #666;">Subtotal</td>
@@ -138,7 +142,6 @@ export class EmailService {
             <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #1a1a1a; border-top: 1px solid #e5e5e5;">${data.currency} ${data.total.toFixed(2)}</td>
           </tr>
         </table>
-
         <p style="color: #999; font-size: 12px; margin-top: 24px;">Powered by ProSystem</p>
       </div>
     `;
@@ -157,7 +160,6 @@ export class EmailService {
       <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #ffffff;">
         <h2 style="color: #d32f2f;">⚠️ Low Stock Alert</h2>
         <p style="color: #333;">Hi ${data.recipientName}, the following items at <strong>${data.shopName}</strong> need restocking:</p>
-
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
           <tr style="border-bottom: 1px solid #e5e5e5;">
             <th style="text-align: left; padding: 8px 0; color: #666;">Product</th>
@@ -166,7 +168,6 @@ export class EmailService {
           </tr>
           ${itemRows}
         </table>
-
         <p style="color: #999; font-size: 12px; margin-top: 24px;">Powered by ProSystem</p>
       </div>
     `;
@@ -189,14 +190,12 @@ export class EmailService {
         <h2 style="color: #1a1a1a;">Welcome to ProSystem, ${data.shopName}! 🎉</h2>
         <p style="color: #333;">Hi ${data.ownerName},</p>
         <p style="color: #333;">Your shop is all set up and ready to go! Here's a quick checklist to get started:</p>
-
         <ol style="color: #333; line-height: 1.8;">
           <li>Add your products</li>
           <li>Add staff members</li>
           <li>Configure plugins if needed</li>
-          <li>Make your first sale</li>
+          <li>Make your first sale!</li>
         </ol>
-
         <p style="color: #999; font-size: 12px; margin-top: 24px;">Powered by ProSystem</p>
       </div>
     `;
