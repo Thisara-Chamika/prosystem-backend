@@ -1,43 +1,42 @@
-import { pgTable, uuid, varchar, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  boolean,
+  jsonb,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
-export const shops = pgTable('shops', {
-  shopId: uuid('shop_id')
-    .primaryKey()
-    .defaultRandom(),
+export const shops = pgTable("shops", {
+  shopId: uuid("shop_id").primaryKey().defaultRandom(),
 
-  name: varchar('name', { length: 255 })
-    .notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
 
-  slug: varchar('slug', { length: 255 })
-    .notNull()
-    .unique(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
 
-  currency: varchar('currency', { length: 3 })
-    .default('USD'),
+  currency: varchar("currency", { length: 3 }).default("USD"),
 
-  timezone: varchar('timezone', { length: 50 })
-    .default('UTC'),
+  timezone: varchar("timezone", { length: 50 }).default("UTC"),
 
-  activePlugins: jsonb('active_plugins')
-    .default([]),
+  activePlugins: jsonb("active_plugins").default([]),
 
-  configuration: jsonb('configuration')
-    .default({}),
+  configuration: jsonb("configuration").default({}),
 
-  isActive: boolean('is_active')
-    .default(true),
+  isActive: boolean("is_active").default(true),
 
-  isOnboarded: boolean('is_onboarded')
-    .default(false)
-    .notNull(),
+  isOnboarded: boolean("is_onboarded").default(false).notNull(),
 
-  createdAt: timestamp('created_at', { mode: 'date' })
-    .defaultNow()
-    .notNull(),
+  onboardingCompleted: boolean("onboarding_completed").default(false),
 
-  updatedAt: timestamp('updated_at', { mode: 'date' })
-    .defaultNow()
-    .notNull(),
+  welcomeEmailSent: boolean("welcome_email_sent").default(false),
+
+  lastLowStockAlertSent: timestamp("last_low_stock_alert_sent", {
+    mode: "date",
+  }),
+
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
 
 // TypeScript type for Shop

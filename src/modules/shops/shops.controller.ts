@@ -1,10 +1,9 @@
-import { Request, Response } from 'express';
-import { ShopsService } from './shops.service';
+import { Request, Response } from "express";
+import { ShopsService } from "./shops.service";
 
 const shopsService = new ShopsService();
 
 export class ShopsController {
-
   // GET /api/shops/me
   async getMyShop(req: Request, res: Response): Promise<void> {
     try {
@@ -15,7 +14,6 @@ export class ShopsController {
         success: true,
         data: shop,
       });
-
     } catch (error: any) {
       res.status(404).json({
         success: false,
@@ -32,10 +30,9 @@ export class ShopsController {
 
       res.status(200).json({
         success: true,
-        message: 'Business type updated successfully!',
+        message: "Business type updated successfully!",
         data: shop,
       });
-
     } catch (error: any) {
       res.status(400).json({
         success: false,
@@ -54,7 +51,6 @@ export class ShopsController {
         success: true,
         data: result,
       });
-
     } catch (error: any) {
       res.status(400).json({
         success: false,
@@ -71,10 +67,9 @@ export class ShopsController {
 
       res.status(200).json({
         success: true,
-        message: `Plugin ${req.body.action === 'add' ? 'activated' : 'deactivated'} successfully!`,
+        message: `Plugin ${req.body.action === "add" ? "activated" : "deactivated"} successfully!`,
         data: shop,
       });
-
     } catch (error: any) {
       res.status(400).json({
         success: false,
@@ -91,10 +86,9 @@ export class ShopsController {
 
       res.status(200).json({
         success: true,
-        message: 'Configuration updated successfully!',
+        message: "Configuration updated successfully!",
         data: shop,
       });
-
     } catch (error: any) {
       res.status(400).json({
         success: false,
@@ -113,7 +107,6 @@ export class ShopsController {
         success: true,
         data: shop,
       });
-
     } catch (error: any) {
       res.status(404).json({
         success: false,
@@ -126,15 +119,14 @@ export class ShopsController {
   async updateSettings(req: Request, res: Response): Promise<void> {
     try {
       const shopId = req.user!.shopId!;
-      const userId = req.user!.userId; 
+      const userId = req.user!.userId;
       const shop = await shopsService.updateSettings(shopId, req.body, userId);
 
       res.status(200).json({
         success: true,
-        message: 'Settings updated successfully!',
+        message: "Settings updated successfully!",
         data: shop,
       });
-
     } catch (error: any) {
       res.status(400).json({
         success: false,
@@ -144,22 +136,61 @@ export class ShopsController {
   }
 
   // POST /api/shops/complete-onboarding
-async completeOnboarding(req: Request, res: Response): Promise<void> {
-  try {
-    const shopId = req.user!.shopId!;
-    const shop = await shopsService.completeOnboarding(shopId);
+  async completeOnboarding(req: Request, res: Response): Promise<void> {
+    try {
+      const shopId = req.user!.shopId!;
+      const shop = await shopsService.completeOnboarding(shopId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Onboarding completed successfully!',
-      data: shop,
-    });
-
-  } catch (error: any) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+      res.status(200).json({
+        success: true,
+        message: "Onboarding completed successfully!",
+        data: shop,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
   }
-}
+
+  // GET /api/shops/email-preferences
+  async getEmailPreferences(req: Request, res: Response): Promise<void> {
+    try {
+      const shopId = req.user!.shopId!;
+      const preferences = await shopsService.getEmailPreferences(shopId);
+
+      res.status(200).json({
+        success: true,
+        data: preferences,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // PUT /api/shops/email-preferences
+  async updateEmailPreferences(req: Request, res: Response): Promise<void> {
+    try {
+      const shopId = req.user!.shopId!;
+      const preferences = await shopsService.updateEmailPreferences(
+        shopId,
+        req.body,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Email preferences updated successfully!",
+        data: preferences,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
 }
