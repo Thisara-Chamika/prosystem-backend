@@ -7,8 +7,8 @@ import {
   AuthResponse,
   JwtPayload,
 } from "./auth.types";
-import { createAuditLog } from '../../utils/audit.utils';
-import { AuditAction } from '../../enums/audit-actions.enum';
+import { createAuditLog } from "../../utils/audit.utils";
+import { AuditAction } from "../../enums/audit-actions.enum";
 
 const authRepository = new AuthRepository();
 const SALT_ROUNDS = 10;
@@ -49,6 +49,7 @@ export class AuthService {
       shopId: shop.shopId,
       role: user.role,
       email: user.email,
+      businessType: shop.businessType,
     });
 
     // 5. Return response
@@ -97,12 +98,20 @@ export class AuthService {
       },
     });
 
+    // Fetch shop for businessType
+    let businessType: string | undefined;
+    if (user.shopId) {
+      const shop = await authRepository.getShopById(user.shopId);
+      businessType = shop?.businessType;
+    }
+
     // 4. Generate JWT token
     const token = this.generateToken({
       userId: user.userId,
       shopId: user.shopId,
       role: user.role,
       email: user.email,
+      businessType,
     });
 
     // 5. Return response
@@ -125,7 +134,14 @@ export class AuthService {
     if (!user) {
       throw new Error("User not found");
     }
-    return user;
+
+    let businessType: string | undefined;
+    if (user.shopId) {
+      const shop = await authRepository.getShopById(user.shopId);
+      businessType = shop?.businessType;
+    }
+
+    return { ...user, businessType };
   }
 
   // Set manager PIN
