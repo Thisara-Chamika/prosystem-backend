@@ -17,17 +17,17 @@ export class ShopsRepository {
 
   // Update business type
   async updateBusinessType(shopId: string, businessType: string) {
-    const result = await db
-      .update(shops)
-      .set({
-        activePlugins: [businessType],
-        updatedAt: new Date(),
-      })
-      .where(eq(shops.shopId, shopId))
-      .returning();
+  const result = await db
+    .update(shops)
+    .set({
+      businessType,        
+      updatedAt: new Date(),
+    })
+    .where(eq(shops.shopId, shopId))
+    .returning();
 
-    return result[0] ?? null;
-  }
+  return result[0] ?? null;
+}
 
   // Update plugin (add or remove)
   async updatePlugin(shopId: string, plugin: string, action: "add" | "remove") {

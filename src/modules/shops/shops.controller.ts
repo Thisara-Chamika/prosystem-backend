@@ -24,22 +24,23 @@ export class ShopsController {
 
   // PUT /api/shops/business-type
   async updateBusinessType(req: Request, res: Response): Promise<void> {
-    try {
-      const shopId = req.user!.shopId!;
-      const shop = await shopsService.updateBusinessType(shopId, req.body);
+  try {
+    const shopId = req.user!.shopId!;
+    const result = await shopsService.updateBusinessType(shopId, req.body);
 
-      res.status(200).json({
-        success: true,
-        message: "Business type updated successfully!",
-        data: shop,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
-    }
+    res.status(200).json({
+      success: true,
+      message: 'Business type updated successfully!',
+      data: result,  // ← { businessType, autoInstalledPlugins }
+    });
+
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
+}
 
   // GET /api/shops/available-plugins
   async getAvailablePlugins(req: Request, res: Response): Promise<void> {
