@@ -95,7 +95,167 @@ export const AVAILABLE_PLUGINS: AvailablePlugin[] = [
         "Schedule appointments, manage staff availability, and track bookings.",
       category: "service",
       icon: "📅",
-      hooks: {}, // ← no hooks yet, just installable
+      hooks: {},
+      routes: [],
+      migrations: [],
+      ui: { pages: [], posExtensions: [] },
+    },
+  },
+  {
+    id: "table-management",
+    name: "Table Management",
+    version: "1.0.0",
+    description:
+      "Manage tables, take orders per table, and track table status.",
+    category: "generic",
+    icon: "🍽️",
+    features: [
+      "Visual table floor plan",
+      "Table status tracking",
+      "Order management per table",
+      "Bill splitting",
+    ],
+    compatible_with: ["restaurant", "general"],
+    auto_install_for: ["restaurant"],
+    manifest: {
+      id: "table-management",
+      name: "Table Management",
+      version: "1.0.0",
+      description:
+        "Manage tables, take orders per table, and track table status.",
+      category: "restaurant",
+      icon: "🍽️",
+      hooks: {},
+      routes: [],
+      migrations: [],
+      ui: { pages: [], posExtensions: [] },
+    },
+  },
+  {
+    id: "kitchen-display",
+    name: "Kitchen Display",
+    version: "1.0.0",
+    description:
+      "Send orders to kitchen automatically with status tracking.",
+    category: "specific",
+    icon: "👨‍🍳",
+    features: [
+      "Kitchen Order Tickets (KOT)",
+      "Order status tracking",
+      "Kitchen display screen",
+      "Order routing",
+    ],
+    compatible_with: ["restaurant", "general"],
+    auto_install_for: ["restaurant"],
+    manifest: {
+      id: "kitchen-display",
+      name: "Kitchen Display",
+      version: "1.0.0",
+      description:
+        "Send orders to kitchen automatically with status tracking.",
+      category: "restaurant",
+      icon: "👨‍🍳",
+      hooks: {},
+      routes: [],
+      migrations: [],
+      ui: { pages: [], posExtensions: [] },
+    },
+  },
+
+  // ── SIMPLE TOGGLE PLUGINS (merged from old System A) ──
+  {
+    id: "card-payments",
+    name: "Card Payments",
+    version: "1.0.0",
+    description:
+      "Accept card payments at checkout via a physical terminal.",
+    category: "generic",
+    icon: "💳",
+    features: ["Card payment method at POS"],
+    compatible_with: ALL_BUSINESS_TYPES,
+    auto_install_for: ALL_BUSINESS_TYPES,
+    manifest: {
+      id: "card-payments",
+      name: "Card Payments",
+      version: "1.0.0",
+      description:
+        "Accept card payments at checkout via a physical terminal.",
+      category: "retail",
+      icon: "💳",
+      hooks: {},
+      routes: [],
+      migrations: [],
+      ui: { pages: [], posExtensions: [] },
+    },
+  },
+  {
+    id: "barcode-scanner",
+    name: "Barcode Scanner",
+    version: "1.0.0",
+    description: "Scan product barcodes for fast lookup at checkout.",
+    category: "generic",
+    icon: "📷",
+    features: ["Barcode scanning at POS and product entry"],
+    compatible_with: ALL_BUSINESS_TYPES,
+    auto_install_for: ALL_BUSINESS_TYPES,
+    manifest: {
+      id: "barcode-scanner",
+      name: "Barcode Scanner",
+      version: "1.0.0",
+      description: "Scan product barcodes for fast lookup at checkout.",
+      category: "retail",
+      icon: "📷",
+      hooks: {},
+      routes: [],
+      migrations: [],
+      ui: { pages: [], posExtensions: [] },
+    },
+  },
+  {
+    id: "online-payments",
+    name: "Online Payments",
+    version: "1.0.0",
+    description: "Accept digital and online payments at checkout.",
+    category: "generic",
+    icon: "🌐",
+    features: ["Online/digital payment method at POS"],
+    compatible_with: ALL_BUSINESS_TYPES,
+    auto_install_for: [],
+    manifest: {
+      id: "online-payments",
+      name: "Online Payments",
+      version: "1.0.0",
+      description: "Accept digital and online payments at checkout.",
+      category: "retail",
+      icon: "🌐",
+      hooks: {},
+      routes: [],
+      migrations: [],
+      ui: { pages: [], posExtensions: [] },
+    },
+  },
+  {
+    id: "loyalty-program",
+    name: "Loyalty Program",
+    version: "1.0.0",
+    description: "Reward returning customers with points and tiers.",
+    category: "generic",
+    icon: "⭐",
+    features: [
+      "Points earning on purchase",
+      "Points redemption at checkout",
+      "Bronze/Silver/Gold tiers",
+    ],
+    compatible_with: ALL_BUSINESS_TYPES,
+    auto_install_for: [],
+    manifest: {
+      id: "loyalty-program",
+      name: "Loyalty Program",
+      version: "1.0.0",
+      description: "Reward returning customers with points and tiers.",
+      category: "retail",
+      icon: "⭐",
+      hooks: {},
       routes: [],
       migrations: [],
       ui: { pages: [], posExtensions: [] },
@@ -116,12 +276,8 @@ export const getAutoInstallPlugins = (businessType: string): string[] => {
 };
 
 // ── Helper: get compatible plugins for a business type ──
-export const getCompatiblePlugins = (
-  businessType: string,
-): AvailablePlugin[] => {
-  return AVAILABLE_PLUGINS.filter(
-    (p) =>
-      p.compatible_with.includes(businessType) ||
-      p.compatible_with.includes("general"),
+export const getCompatiblePlugins = (businessType: string): AvailablePlugin[] => {
+  return AVAILABLE_PLUGINS.filter((p) =>
+    p.compatible_with.includes(businessType)
   );
 };
