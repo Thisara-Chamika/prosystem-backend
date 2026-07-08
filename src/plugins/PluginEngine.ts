@@ -4,10 +4,14 @@ import { shops } from "../db/schema/shops";
 import { eq, and } from "drizzle-orm";
 import { InstalledPlugin, HookContext, PluginManifest } from "./types";
 import { findPlugin, AVAILABLE_PLUGINS } from "./PluginRegistry";
+import * as productVariantsHooks from './product-variants/hooks';
+
+const HOOK_MODULES: Record<string, any> = {
+  'product-variants': productVariantsHooks,
+};
 
 export class PluginEngine {
   // In-memory cache per shop
-  // Map<shopId, InstalledPlugin[]>
   private loadedPlugins: Map<string, InstalledPlugin[]> = new Map();
 
   // ── LOAD PLUGINS FOR SHOP ─────────────────────────
@@ -281,15 +285,12 @@ export class PluginEngine {
 
   // ── LOAD HOOK MODULE ──────────────────────────────
   private async loadHookModule(pluginId: string): Promise<any> {
-    try {
-      const module = await import(
-        `${process.cwd()}/src/plugins/${pluginId}/hooks/index`
-      );
-      return module;
-    } catch (error) {
+    const module = HOOK_MODULES[pluginId];
+    if (!module) {
       console.warn(`No hooks found for plugin '${pluginId}'`);
       return null;
     }
+    return module;
   }
 }
 
