@@ -94,7 +94,7 @@ export async function validateVariantSelection(context: HookContext) {
           .limit(1);
 
         throw new Error(
-          `Please select size and color for "${product[0]?.name ?? "this product"}" before checkout!`,
+          `Please select variant options for "${product[0]?.name ?? "this product"}" before checkout!`,
         );
       }
 
