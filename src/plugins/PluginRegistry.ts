@@ -234,33 +234,6 @@ export const AVAILABLE_PLUGINS: AvailablePlugin[] = [
       ui: { pages: [], posExtensions: [] },
     },
   },
-  {
-    id: "loyalty-program",
-    name: "Loyalty Program",
-    version: "1.0.0",
-    description: "Reward returning customers with points and tiers.",
-    category: "generic",
-    icon: "⭐",
-    features: [
-      "Points earning on purchase",
-      "Points redemption at checkout",
-      "Bronze/Silver/Gold tiers",
-    ],
-    compatible_with: ALL_BUSINESS_TYPES,
-    auto_install_for: [],
-    manifest: {
-      id: "loyalty-program",
-      name: "Loyalty Program",
-      version: "1.0.0",
-      description: "Reward returning customers with points and tiers.",
-      category: "retail",
-      icon: "⭐",
-      hooks: {},
-      routes: [],
-      migrations: [],
-      ui: { pages: [], posExtensions: [] },
-    },
-  },
 ];
 
 // ── Helper: find plugin by ID ─────────────────────
