@@ -39,31 +39,33 @@ export class VariantService {
   async createVariant(data: {
     productId: string;
     shopId: string;
-    size: string;
-    color: string;
+    size?: string;
+    color?: string;
+    customAttributes?: Record<string, string>;
     skuVariant?: string;
     priceAdjustment?: number;
     quantity: number;
   }) {
-    // Check variant doesn't already exist
-    const existing = await db
-      .select()
-      .from(productVariants)
-      .where(
-        and(
-          eq(productVariants.productId, data.productId),
-          eq(productVariants.shopId, data.shopId),
-          eq(productVariants.size, data.size),
-          eq(productVariants.color, data.color),
-          eq(productVariants.isActive, true)
+    if (data.size && data.color) {
+      const existing = await db
+        .select()
+        .from(productVariants)
+        .where(
+          and(
+            eq(productVariants.productId, data.productId),
+            eq(productVariants.shopId, data.shopId),
+            eq(productVariants.size, data.size),
+            eq(productVariants.color, data.color),
+            eq(productVariants.isActive, true)
+          )
         )
-      )
-      .limit(1);
+        .limit(1);
 
-    if (existing.length > 0) {
-      throw new Error(
-        `Variant ${data.size}/${data.color} already exists for this product!`
-      );
+      if (existing.length > 0) {
+        throw new Error(
+          `Variant ${data.size}/${data.color} already exists for this product!`
+        );
+      }
     }
 
     const result = await db
@@ -73,6 +75,7 @@ export class VariantService {
         productId: data.productId,
         size: data.size,
         color: data.color,
+        customAttributes: data.customAttributes ?? {}, 
         skuVariant: data.skuVariant,
         priceAdjustment: data.priceAdjustment
           ? String(data.priceAdjustment)
