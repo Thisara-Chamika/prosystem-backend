@@ -1,23 +1,23 @@
-import express, { Application, Request, Response } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import dotenv from 'dotenv';
-import authRoutes from './modules/auth/auth.routes';
-import productsRoutes from './modules/products/products.routes';
-import posRoutes from './modules/pos/pos.routes';
-import customersRoutes from './modules/customers/customers.routes';
-import { setRlsContext } from './middlewares/rls.middleware';
-import shopsRoutes from './modules/shops/shops.routes';
-import staffRoutes from './modules/staff/staff.routes';
-import returnsRoutes from './modules/returns/returns.routes';
-import dashboardRoutes from './modules/dashboard/dashboard.routes';
-import reportsRoutes from './modules/reports/reports.routes';
-import categoriesRoutes from './modules/categories/categories.routes';
-import inventoryRoutes from './modules/inventory/inventory.routes';
-import pluginsRoutes from './modules/plugins/plugins.routes';
-import fashionRoutes from './plugins/fashion-shop/fashion.routes';
-import auditLogsRoutes from './modules/audit-logs/audit-logs.routes';
-import loyaltyRoutes from './modules/loyalty/loyalty.routes';
+import express, { Application, Request, Response } from "express";
+import cors from "cors";
+import helmet from "helmet";
+import dotenv from "dotenv";
+import authRoutes from "./modules/auth/auth.routes";
+import productsRoutes from "./modules/products/products.routes";
+import posRoutes from "./modules/pos/pos.routes";
+import customersRoutes from "./modules/customers/customers.routes";
+import { setRlsContext } from "./middlewares/rls.middleware";
+import shopsRoutes from "./modules/shops/shops.routes";
+import staffRoutes from "./modules/staff/staff.routes";
+import returnsRoutes from "./modules/returns/returns.routes";
+import dashboardRoutes from "./modules/dashboard/dashboard.routes";
+import reportsRoutes from "./modules/reports/reports.routes";
+import categoriesRoutes from "./modules/categories/categories.routes";
+import inventoryRoutes from "./modules/inventory/inventory.routes";
+import pluginsRoutes from "./modules/plugins/plugins.routes";
+import variantsRoutes from "./plugins/product-variants/variants.routes";
+import auditLogsRoutes from "./modules/audit-logs/audit-logs.routes";
+import loyaltyRoutes from "./modules/loyalty/loyalty.routes";
 
 // Load environment variables
 dotenv.config();
@@ -36,42 +36,44 @@ app.use(express.urlencoded({ extended: true }));
 app.use(helmet());
 
 // CORS - Allow frontend to talk to backend
-app.use(cors({
-  origin: [
-    'http://localhost:5173',          // Vite dev server
-    'http://localhost',               // Nginx (port 80)
-    'http://localhost:80',            // Nginx explicit port
-    process.env.FRONTEND_URL || '',   // From .env
-  ].filter(Boolean),
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173", // Vite dev server
+      "http://localhost", // Nginx (port 80)
+      "http://localhost:80", // Nginx explicit port
+      process.env.FRONTEND_URL || "", // From .env
+    ].filter(Boolean),
+    credentials: true,
+  }),
+);
 
 // ── RLS Middleware ────────────────────────────────
 // Runs after auth middleware sets req.user
 app.use(setRlsContext);
 
 // ── Routes ────────────────────────────────────────
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productsRoutes);
-app.use('/api/customers', customersRoutes);
-app.use('/api/pos', posRoutes);
-app.use('/api/shops', shopsRoutes);
-app.use('/api/staff', staffRoutes);
-app.use('/api/transactions/:transactionId/return', returnsRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/categories', categoriesRoutes);
-app.use('/api/inventory', inventoryRoutes);
-app.use('/api/plugins', pluginsRoutes);
-app.use('/api/plugins/fashion', fashionRoutes);
-app.use('/api/audit-logs', auditLogsRoutes);
-app.use('/api/loyalty', loyaltyRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/products", productsRoutes);
+app.use("/api/customers", customersRoutes);
+app.use("/api/pos", posRoutes);
+app.use("/api/shops", shopsRoutes);
+app.use("/api/staff", staffRoutes);
+app.use("/api/transactions/:transactionId/return", returnsRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/reports", reportsRoutes);
+app.use("/api/categories", categoriesRoutes);
+app.use("/api/inventory", inventoryRoutes);
+app.use("/api/plugins", pluginsRoutes);
+app.use("/api/plugins/product-variants", variantsRoutes);
+app.use("/api/audit-logs", auditLogsRoutes);
+app.use("/api/loyalty", loyaltyRoutes);
 // ─── Health Check Route ───────────────────────
-app.get('/health', (req: Request, res: Response) => {
+app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({
-    status: 'OK',
-    message: 'ProSystem API is running!',
-    timestamp: new Date().toISOString()
+    status: "OK",
+    message: "ProSystem API is running!",
+    timestamp: new Date().toISOString(),
   });
 });
 

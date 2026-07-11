@@ -367,4 +367,19 @@ export class PosRepository {
 
     return txnResults;
   }
+
+  async getCustomerById(customerId: string, shopId: string) {
+  const result = await db
+    .select()
+    .from(customers)
+    .where(
+      and(
+        eq(customers.customerId, customerId),
+        eq(customers.shopId, shopId)
+      )
+    )
+    .limit(1);
+
+  return result[0] ?? null;
+}
 }

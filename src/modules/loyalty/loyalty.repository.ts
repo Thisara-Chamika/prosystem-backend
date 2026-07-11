@@ -33,7 +33,7 @@ export class LoyaltyRepository {
       .insert(loyaltySettings)
       .values({
         shopId,
-        isEnabled: input.isEnabled ?? true,
+        isEnabled: input.isEnabled ?? false,
         pointsPer100: input.pointsPer100
           ? String(input.pointsPer100) : '1',
         pointsToRedeem: input.pointsToRedeem ?? 100,
@@ -45,7 +45,7 @@ export class LoyaltyRepository {
       .onConflictDoUpdate({
         target: loyaltySettings.shopId,
         set: {
-          isEnabled: input.isEnabled ?? true,
+          isEnabled: input.isEnabled ?? false,
           pointsPer100: input.pointsPer100
             ? String(input.pointsPer100) : '1',
           pointsToRedeem: input.pointsToRedeem ?? 100,

@@ -4,7 +4,7 @@ const loyaltyRepository = new LoyaltyRepository();
 
 // Default settings if none configured
 const DEFAULT_SETTINGS = {
-  isEnabled: true,
+  isEnabled: false,
   pointsPer100: 1,
   pointsToRedeem: 100,
   redeemValue: 50,

@@ -1,6 +1,9 @@
 import { CustomersRepository } from './customers.repository';
 import { CreateCustomerInput, UpdateCustomerInput, CustomerFilters } from './customers.types';
+import { emailService } from '../../services/EmailService';
+import { ShopsRepository } from '../shops/shops.repository';
 
+const shopsRepository = new ShopsRepository();
 const customersRepository = new CustomersRepository();
 
 export class CustomersService {
@@ -15,12 +18,34 @@ export class CustomersService {
       }
     }
 
-    return await customersRepository.createCustomer({
+    const customer = await customersRepository.createCustomer({
       ...input,
       shopId,
       createdBy: userId,
       updatedBy: userId,
     });
+
+    // ── Send welcome email (never breaks customer creation!) ──
+    if (customer.email) {
+      try {
+        const shop = await shopsRepository.getShopById(shopId);
+        const prefs = (shop?.configuration as any)?.emailNotifications ?? {};
+
+        if (prefs.customerWelcomeEmails !== false) {
+          await emailService.sendCustomerWelcomeEmail({
+            to: customer.email,
+            customerName: customer.firstName,
+            shopName: shop?.name ?? 'Shop',
+          }).catch(err => {
+            console.error('Failed to send customer welcome email:', err);
+          });
+        }
+      } catch (error) {
+        console.error('Customer welcome email error:', error);
+      }
+    }
+
+    return customer;
   }
 
   // Get all customers

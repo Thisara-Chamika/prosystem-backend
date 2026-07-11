@@ -7,7 +7,7 @@ const router = Router();
 
 // All routes need auth + fashion plugin active!
 router.use(authenticate);
-router.use(requirePlugin('fashion-shop'));
+router.use(requirePlugin('product-variants'));
 
 // ── GET routes ────────────────────────────────────
 // Get available variants ← must be before /:productId/variants!

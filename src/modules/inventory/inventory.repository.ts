@@ -209,4 +209,30 @@ export class InventoryRepository {
     if (quantity <= reorderPoint) return 'low';
     return 'in_stock';
   }
+
+  // Get low stock items for email alert
+async getLowStockItemsForAlert(shopId: string) {
+  const allItems = await db
+    .select({
+      productName: products.name,
+      quantity: inventory.quantity,
+      reorderPoint: inventory.reorderPoint,
+    })
+    .from(inventory)
+    .innerJoin(
+      products,
+      and(
+        eq(products.productId, inventory.productId),
+        eq(products.shopId, shopId),
+        eq(products.isActive, true),
+        eq(products.productType, 'product'),
+        eq(products.trackInventory, true)
+      )
+    )
+    .where(eq(inventory.shopId, shopId));
+
+  return allItems.filter(item =>
+    item.quantity <= (item.reorderPoint ?? 0)
+  );
+}
 }

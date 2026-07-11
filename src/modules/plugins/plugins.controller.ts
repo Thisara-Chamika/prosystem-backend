@@ -6,54 +6,64 @@ import { pluginConfigurations } from '../../db/schema/plugin-configurations';
 import { eq, and } from 'drizzle-orm';
 import { createAuditLog } from '../../utils/audit.utils';
 import { AuditAction } from '../../enums/audit-actions.enum';
+import { getCompatiblePlugins } from '../../plugins/PluginRegistry';
+import { ShopsRepository } from '../shops/shops.repository';
 
+const shopsRepository = new ShopsRepository();
 export class PluginsController {
 
   // GET /api/plugins
   async getPlugins(req: Request, res: Response): Promise<void> {
-    try {
-      const shopId = req.user!.shopId!;
+  try {
+    const shopId = req.user!.shopId!;
 
-      // Get all installed plugins for this shop
-      const installed = await db
-        .select()
-        .from(pluginConfigurations)
-        .where(eq(pluginConfigurations.shopId, shopId));
+    // Get shop's business type
+    const shop = await shopsRepository.getShopById(shopId);
+    const businessType = shop?.businessType ?? 'general';
 
-      // Build response with install status
-      const data = AVAILABLE_PLUGINS.map(plugin => {
-        const installedConfig = installed.find(
-          i => i.pluginId === plugin.id
-        );
+    // Get all installed plugins for this shop
+    const installed = await db
+      .select()
+      .from(pluginConfigurations)
+      .where(eq(pluginConfigurations.shopId, shopId));
 
-        return {
-          id: plugin.id,
-          name: plugin.name,
-          version: plugin.version,
-          description: plugin.description,
-          category: plugin.category,
-          icon: plugin.icon,
-          features: plugin.features,
-          businessTypes: plugin.businessTypes,
-          isInstalled: installedConfig?.isActive ?? false,
-          isActive: installedConfig?.isActive ?? false,
-          installedAt: installedConfig?.installedAt ?? null,
-          configuration: installedConfig?.configuration ?? {},
-        };
-      });
+    // Filter to only compatible plugins for this business type
+    const compatiblePlugins = getCompatiblePlugins(businessType);
 
-      res.status(200).json({
-        success: true,
-        data,
-      });
+    // Build response with install status
+    const data = compatiblePlugins.map(plugin => {
+      const installedConfig = installed.find(
+        i => i.pluginId === plugin.id
+      );
 
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
-    }
+      return {
+        id: plugin.id,
+        name: plugin.name,
+        version: plugin.version,
+        description: plugin.description,
+        category: plugin.category,
+        icon: plugin.icon,
+        features: plugin.features,
+        compatible_with: plugin.compatible_with,
+        isInstalled: installedConfig?.isActive ?? false,
+        isActive: installedConfig?.isActive ?? false,
+        installedAt: installedConfig?.installedAt ?? null,
+        configuration: installedConfig?.configuration ?? {},
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data,
+    });
+
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
+}
 
   // POST /api/plugins/:pluginId/install
   async installPlugin(req: Request, res: Response): Promise<void> {

@@ -1,35 +1,42 @@
-import { ShopsRepository } from './shops.repository';
+import { ShopsRepository } from "./shops.repository";
 import {
   UpdateBusinessTypeInput,
   UpdateConfigurationInput,
   UpdatePluginInput,
-  ShopSettings
-} from './shops.types';
+  ShopSettings,
+} from "./shops.types";
 import {
   BUSINESS_TEMPLATES,
   PLUGINS_BY_BUSINESS,
-  BusinessTemplate
-} from '../../enums/plugins.enum';
-import { createAuditLog } from '../../utils/audit.utils';
-import { AuditAction } from '../../enums/audit-actions.enum';
-import { CategoriesService } from '../categories/categories.service';
+  BusinessTemplate,
+} from "../../enums/plugins.enum";
+import { createAuditLog } from "../../utils/audit.utils";
+import { AuditAction } from "../../enums/audit-actions.enum";
+import { CategoriesService } from "../categories/categories.service";
+import { emailService } from "../../services/EmailService";
+import { getAutoInstallPlugins } from '../../plugins/PluginRegistry';
+import { pluginEngine } from '../../plugins/PluginEngine';
 
 const shopsRepository = new ShopsRepository();
 
 export class ShopsService {
-
   async getMyShop(shopId: string) {
     const shop = await shopsRepository.getShopById(shopId);
     if (!shop) {
-      throw new Error('Shop not found!');
+      throw new Error("Shop not found!");
     }
     return shop;
   }
 
   async updateBusinessType(shopId: string, input: UpdateBusinessTypeInput) {
-  if (!BUSINESS_TEMPLATES.includes(input.businessType as BusinessTemplate)) {
+  const ALLOWED_BUSINESS_TYPES = [
+    'fashion-shop', 'salon', 'restaurant',
+    'pharmacy', 'supermarket', 'electronics-shop', 'general',
+  ];
+
+  if (!ALLOWED_BUSINESS_TYPES.includes(input.businessType)) {
     throw new Error(
-      `Invalid business type! Valid types: ${BUSINESS_TEMPLATES.join(', ')}`
+      `Invalid business type! Valid types: ${ALLOWED_BUSINESS_TYPES.join(', ')}`
     );
   }
 
@@ -42,26 +49,40 @@ export class ShopsService {
     throw new Error('Shop not found!');
   }
 
-  // ── Seed categories for new business type! ────
   const categoriesService = new CategoriesService();
   await categoriesService.seedCategoriesForBusinessType(
     shopId,
     input.businessType
   );
 
-  return shop;
+  const pluginsToInstall = getAutoInstallPlugins(input.businessType);
+  const installedPlugins: string[] = [];
+
+  for (const pluginId of pluginsToInstall) {
+    try {
+      await pluginEngine.installPlugin(shopId, pluginId);
+      installedPlugins.push(pluginId);
+    } catch (error) {
+      console.error(`Auto-install failed for ${pluginId}:`, error);
+    }
+  }
+
+  return {
+    businessType: input.businessType,
+    autoInstalledPlugins: installedPlugins,
+  };
 }
 
   async getAvailablePlugins(shopId: string) {
     const shop = await shopsRepository.getShopById(shopId);
     if (!shop) {
-      throw new Error('Shop not found!');
+      throw new Error("Shop not found!");
     }
 
     const activePlugins = (shop.activePlugins as string[]) ?? [];
 
-    const businessTemplate = activePlugins.find(p =>
-      BUSINESS_TEMPLATES.includes(p as BusinessTemplate)
+    const businessTemplate = activePlugins.find((p) =>
+      BUSINESS_TEMPLATES.includes(p as BusinessTemplate),
     ) as BusinessTemplate | undefined;
 
     if (!businessTemplate) {
@@ -69,7 +90,7 @@ export class ShopsService {
         businessTemplate: null,
         availablePlugins: [],
         activePlugins,
-        message: 'Please select a business type first!'
+        message: "Please select a business type first!",
       };
     }
 
@@ -85,34 +106,34 @@ export class ShopsService {
   async updatePlugin(shopId: string, input: UpdatePluginInput) {
     const shop = await shopsRepository.getShopById(shopId);
     if (!shop) {
-      throw new Error('Shop not found!');
+      throw new Error("Shop not found!");
     }
 
     const activePlugins = (shop.activePlugins as string[]) ?? [];
 
-    const businessTemplate = activePlugins.find(p =>
-      BUSINESS_TEMPLATES.includes(p as BusinessTemplate)
+    const businessTemplate = activePlugins.find((p) =>
+      BUSINESS_TEMPLATES.includes(p as BusinessTemplate),
     ) as BusinessTemplate | undefined;
 
     if (!businessTemplate) {
-      throw new Error('Please select a business type first!');
+      throw new Error("Please select a business type first!");
     }
 
     const availablePlugins = PLUGINS_BY_BUSINESS[businessTemplate] ?? [];
     if (!availablePlugins.includes(input.plugin)) {
       throw new Error(
-        `Plugin '${input.plugin}' is not available for ${businessTemplate}!`
+        `Plugin '${input.plugin}' is not available for ${businessTemplate}!`,
       );
     }
 
     if (BUSINESS_TEMPLATES.includes(input.plugin as BusinessTemplate)) {
-      throw new Error('Cannot remove business template via this endpoint!');
+      throw new Error("Cannot remove business template via this endpoint!");
     }
 
     return await shopsRepository.updatePlugin(
       shopId,
       input.plugin,
-      input.action
+      input.action,
     );
   }
 
@@ -140,7 +161,7 @@ export class ShopsService {
   async getSettings(shopId: string) {
     const shop = await shopsRepository.getShopById(shopId);
     if (!shop) {
-      throw new Error('Shop not found!');
+      throw new Error("Shop not found!");
     }
     return shop;
   }
@@ -148,7 +169,7 @@ export class ShopsService {
   async updateSettings(shopId: string, input: ShopSettings, userId: string) {
     const currentShop = await shopsRepository.getShopById(shopId);
     if (!currentShop) {
-      throw new Error('Shop not found!');
+      throw new Error("Shop not found!");
     }
 
     const settings: Record<string, any> = {};
@@ -165,8 +186,7 @@ export class ShopsService {
     } else {
       if (input.primaryColor !== undefined)
         configUpdate.primaryColor = input.primaryColor;
-      if (input.logoUrl !== undefined)
-        configUpdate.logoUrl = input.logoUrl;
+      if (input.logoUrl !== undefined) configUpdate.logoUrl = input.logoUrl;
     }
 
     if (Object.keys(settings).length > 0) {
@@ -183,7 +203,7 @@ export class ShopsService {
       shopId,
       userId,
       action: AuditAction.SETTINGS_UPDATED,
-      entityType: 'shop',
+      entityType: "shop",
       entityId: shopId,
       details: {
         oldValues: {
@@ -207,8 +227,84 @@ export class ShopsService {
   async completeOnboarding(shopId: string) {
     const shop = await shopsRepository.completeOnboarding(shopId);
     if (!shop) {
-      throw new Error('Shop not found!');
+      throw new Error("Shop not found!");
     }
+
+    // ── Send shop welcome email (only once!) ──────────
+    if (!shop.welcomeEmailSent) {
+      try {
+        await shopsRepository.markWelcomeEmailSent(shopId);
+
+        const owner = await shopsRepository.getShopOwner(shopId);
+
+        if (owner?.email) {
+          const businessType =
+            (shop.activePlugins as string[])?.[0] ?? "general";
+
+          await emailService
+            .sendShopWelcomeEmail({
+              to: owner.email,
+              ownerName: owner.firstName,
+              shopName: shop.name,
+              businessType,
+            })
+            .catch((err) => {
+              console.error("Failed to send shop welcome email:", err);
+            });
+        }
+      } catch (error) {
+        console.error("Shop welcome email error:", error);
+      }
+    }
+
     return shop;
+  }
+
+  // Get email preferences
+  async getEmailPreferences(shopId: string) {
+    const shop = await shopsRepository.getShopById(shopId);
+    if (!shop) {
+      throw new Error("Shop not found!");
+    }
+
+    const defaults = {
+      shopWelcomeEmail: true,
+      staffWelcomeEmail: true,
+      receiptEmails: true,
+      lowStockAlerts: true,
+      customerWelcomeEmails: true,
+    };
+
+    const configured = (shop.configuration as any)?.emailNotifications ?? {};
+
+    return { ...defaults, ...configured };
+  }
+
+  // Update email preferences
+  async updateEmailPreferences(
+    shopId: string,
+    input: {
+      shopWelcomeEmail?: boolean;
+      staffWelcomeEmail?: boolean;
+      receiptEmails?: boolean;
+      lowStockAlerts?: boolean;
+      customerWelcomeEmails?: boolean;
+    },
+  ) {
+    const shop = await shopsRepository.getShopById(shopId);
+    if (!shop) {
+      throw new Error("Shop not found!");
+    }
+
+    const currentConfig = (shop.configuration as any) ?? {};
+    const currentPrefs = currentConfig.emailNotifications ?? {};
+
+    const updatedPrefs = { ...currentPrefs, ...input };
+
+    await shopsRepository.updateConfiguration(shopId, {
+      emailNotifications: updatedPrefs,
+    });
+
+    return updatedPrefs;
   }
 }

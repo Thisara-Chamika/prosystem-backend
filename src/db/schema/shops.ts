@@ -1,43 +1,46 @@
-import { pgTable, uuid, varchar, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  boolean,
+  jsonb,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
-export const shops = pgTable('shops', {
-  shopId: uuid('shop_id')
-    .primaryKey()
-    .defaultRandom(),
+export const shops = pgTable("shops", {
+  shopId: uuid("shop_id").primaryKey().defaultRandom(),
 
-  name: varchar('name', { length: 255 })
-    .notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
 
-  slug: varchar('slug', { length: 255 })
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
+
+  currency: varchar("currency", { length: 3 }).default("USD"),
+
+  timezone: varchar("timezone", { length: 50 }).default("UTC"),
+
+  activePlugins: jsonb("active_plugins").default([]),
+
+  businessType: varchar("business_type", { length: 50 })
     .notNull()
-    .unique(),
+    .default("general"),
 
-  currency: varchar('currency', { length: 3 })
-    .default('USD'),
+  configuration: jsonb("configuration").default({}),
 
-  timezone: varchar('timezone', { length: 50 })
-    .default('UTC'),
+  isActive: boolean("is_active").default(true),
 
-  activePlugins: jsonb('active_plugins')
-    .default([]),
+  isOnboarded: boolean("is_onboarded").default(false).notNull(),
 
-  configuration: jsonb('configuration')
-    .default({}),
+  onboardingCompleted: boolean("onboarding_completed").default(false),
 
-  isActive: boolean('is_active')
-    .default(true),
+  welcomeEmailSent: boolean("welcome_email_sent").default(false),
 
-  isOnboarded: boolean('is_onboarded')
-    .default(false)
-    .notNull(),
+  lastLowStockAlertSent: timestamp("last_low_stock_alert_sent", {
+    mode: "date",
+  }),
 
-  createdAt: timestamp('created_at', { mode: 'date' })
-    .defaultNow()
-    .notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 
-  updatedAt: timestamp('updated_at', { mode: 'date' })
-    .defaultNow()
-    .notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
 
 // TypeScript type for Shop
