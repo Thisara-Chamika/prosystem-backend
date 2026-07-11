@@ -20,6 +20,10 @@ export const shops = pgTable("shops", {
 
   activePlugins: jsonb("active_plugins").default([]),
 
+  businessType: varchar("business_type", { length: 50 })
+    .notNull()
+    .default("general"),
+
   configuration: jsonb("configuration").default({}),
 
   isActive: boolean("is_active").default(true),

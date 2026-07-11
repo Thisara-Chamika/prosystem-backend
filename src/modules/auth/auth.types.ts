@@ -23,6 +23,7 @@ export interface JwtPayload {
   shopId: string | null;
   role: string;
   email: string;
+  businessType?: string; 
 }
 
 export interface AuthResponse {

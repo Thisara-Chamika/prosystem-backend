@@ -1,12 +1,11 @@
-import { db } from '../../config/database';
-import { shops } from '../../db/schema/shops';
-import { users } from '../../db/schema/users';
-import { eq, and } from 'drizzle-orm';
-import { NewShop } from '../../db/schema/shops';
-import { NewUser } from '../../db/schema/users';
+import { db } from "../../config/database";
+import { shops } from "../../db/schema/shops";
+import { users } from "../../db/schema/users";
+import { eq, and } from "drizzle-orm";
+import { NewShop } from "../../db/schema/shops";
+import { NewUser } from "../../db/schema/users";
 
 export class AuthRepository {
-
   // Find user by email
   async findUserByEmail(email: string) {
     const result = await db
@@ -20,34 +19,31 @@ export class AuthRepository {
 
   // Find user by ID
   async findUserById(userId: string) {
-  const result = await db
-    .select({
-      userId: users.userId,
-      shopId: users.shopId,
-      email: users.email,
-      role: users.role,
-      firstName: users.firstName,
-      lastName: users.lastName,
-      phone: users.phone,
-      isActive: users.isActive,
-      lastLogin: users.lastLogin,
-      createdAt: users.createdAt,
-      updatedAt: users.updatedAt,
-    })
-    .from(users)
-    .where(eq(users.userId, userId))
-    .limit(1);
+    const result = await db
+      .select({
+        userId: users.userId,
+        shopId: users.shopId,
+        email: users.email,
+        role: users.role,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        phone: users.phone,
+        isActive: users.isActive,
+        lastLogin: users.lastLogin,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+      })
+      .from(users)
+      .where(eq(users.userId, userId))
+      .limit(1);
 
-  return result[0] ?? null;
+    return result[0] ?? null;
   }
 
   // Create shop and owner together
   async createShopWithOwner(shopData: NewShop, userData: NewUser) {
     // Create shop first
-    const newShop = await db
-      .insert(shops)
-      .values(shopData)
-      .returning();
+    const newShop = await db.insert(shops).values(shopData).returning();
 
     // Then create owner with shopId
     const newUser = await db
@@ -55,111 +51,119 @@ export class AuthRepository {
       .values({
         ...userData,
         shopId: newShop[0].shopId,
-        role: 'shop_owner'
+        role: "shop_owner",
       })
       .returning();
 
     return {
       shop: newShop[0],
-      user: newUser[0]
+      user: newUser[0],
     };
   }
 
   // Update last login timestamp
-async updateLastLogin(userId: string) {
-  await db
-    .update(users)
-    .set({
-      lastLogin: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(users.userId, userId));
-}
+  async updateLastLogin(userId: string) {
+    await db
+      .update(users)
+      .set({
+        lastLogin: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.userId, userId));
+  }
 
-// Set manager PIN
-async setManagerPin(userId: string, pinHash: string) {
-  await db
-    .update(users)
-    .set({
-      managerPin: pinHash,
-      updatedAt: new Date(),
-    })
-    .where(eq(users.userId, userId));
-}
+  // Set manager PIN
+  async setManagerPin(userId: string, pinHash: string) {
+    await db
+      .update(users)
+      .set({
+        managerPin: pinHash,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.userId, userId));
+  }
 
-// Get all active managers and owners for a shop
-async getShopManagers(shopId: string) {
-  const result = await db
-    .select({
-      userId: users.userId,
-      firstName: users.firstName,
-      lastName: users.lastName,
-      email: users.email,
-      role: users.role,
-      managerPin: users.managerPin,
-    })
-    .from(users)
-    .where(
-      and(
-        eq(users.shopId, shopId),
-        eq(users.isActive, true),
-      )
+  // Get all active managers and owners for a shop
+  async getShopManagers(shopId: string) {
+    const result = await db
+      .select({
+        userId: users.userId,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        role: users.role,
+        managerPin: users.managerPin,
+      })
+      .from(users)
+      .where(and(eq(users.shopId, shopId), eq(users.isActive, true)));
+
+    // Filter only managers and owners
+    return result.filter(
+      (u) => u.role === "shop_owner" || u.role === "shop_manager",
     );
+  }
 
-  // Filter only managers and owners
-  return result.filter(u =>
-    u.role === 'shop_owner' || u.role === 'shop_manager'
-  );
-}
+  // Update user profile
+  async updateProfile(
+    userId: string,
+    data: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+    },
+  ) {
+    const result = await db
+      .update(users)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.userId, userId))
+      .returning({
+        userId: users.userId,
+        shopId: users.shopId,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        role: users.role,
+        phone: users.phone,
+        isActive: users.isActive,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+      });
 
-// Update user profile
-async updateProfile(userId: string, data: {
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-}) {
-  const result = await db
-    .update(users)
-    .set({
-      ...data,
-      updatedAt: new Date(),
-    })
-    .where(eq(users.userId, userId))
-    .returning({
-      userId: users.userId,
-      shopId: users.shopId,
-      firstName: users.firstName,
-      lastName: users.lastName,
-      email: users.email,
-      role: users.role,
-      phone: users.phone,
-      isActive: users.isActive,
-      createdAt: users.createdAt,
-      updatedAt: users.updatedAt,
-    });
+    return result[0] ?? null;
+  }
 
-  return result[0] ?? null;
-}
+  // Get user with password hash (for verification)
+  async getUserWithPassword(userId: string) {
+    const result = await db
+      .select()
+      .from(users)
+      .where(eq(users.userId, userId))
+      .limit(1);
 
-// Get user with password hash (for verification)
-async getUserWithPassword(userId: string) {
-  const result = await db
-    .select()
-    .from(users)
-    .where(eq(users.userId, userId))
-    .limit(1);
+    return result[0] ?? null;
+  }
 
-  return result[0] ?? null;
-}
+  // Update password
+  async updatePassword(userId: string, passwordHash: string) {
+    await db
+      .update(users)
+      .set({
+        passwordHash,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.userId, userId));
+  }
 
-// Update password
-async updatePassword(userId: string, passwordHash: string) {
-  await db
-    .update(users)
-    .set({
-      passwordHash,
-      updatedAt: new Date(),
-    })
-    .where(eq(users.userId, userId));
-}
+  async getShopById(shopId: string) {
+    const result = await db
+      .select()
+      .from(shops)
+      .where(eq(shops.shopId, shopId))
+      .limit(1);
+
+    return result[0] ?? null;
+  }
 }

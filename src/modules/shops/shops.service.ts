@@ -14,6 +14,8 @@ import { createAuditLog } from "../../utils/audit.utils";
 import { AuditAction } from "../../enums/audit-actions.enum";
 import { CategoriesService } from "../categories/categories.service";
 import { emailService } from "../../services/EmailService";
+import { getAutoInstallPlugins } from '../../plugins/PluginRegistry';
+import { pluginEngine } from '../../plugins/PluginEngine';
 
 const shopsRepository = new ShopsRepository();
 
@@ -27,30 +29,49 @@ export class ShopsService {
   }
 
   async updateBusinessType(shopId: string, input: UpdateBusinessTypeInput) {
-    if (!BUSINESS_TEMPLATES.includes(input.businessType as BusinessTemplate)) {
-      throw new Error(
-        `Invalid business type! Valid types: ${BUSINESS_TEMPLATES.join(", ")}`,
-      );
-    }
+  const ALLOWED_BUSINESS_TYPES = [
+    'fashion-shop', 'salon', 'restaurant',
+    'pharmacy', 'supermarket', 'electronics-shop', 'general',
+  ];
 
-    const shop = await shopsRepository.updateBusinessType(
-      shopId,
-      input.businessType,
+  if (!ALLOWED_BUSINESS_TYPES.includes(input.businessType)) {
+    throw new Error(
+      `Invalid business type! Valid types: ${ALLOWED_BUSINESS_TYPES.join(', ')}`
     );
-
-    if (!shop) {
-      throw new Error("Shop not found!");
-    }
-
-    // ── Seed categories for new business type! ────
-    const categoriesService = new CategoriesService();
-    await categoriesService.seedCategoriesForBusinessType(
-      shopId,
-      input.businessType,
-    );
-
-    return shop;
   }
+
+  const shop = await shopsRepository.updateBusinessType(
+    shopId,
+    input.businessType
+  );
+
+  if (!shop) {
+    throw new Error('Shop not found!');
+  }
+
+  const categoriesService = new CategoriesService();
+  await categoriesService.seedCategoriesForBusinessType(
+    shopId,
+    input.businessType
+  );
+
+  const pluginsToInstall = getAutoInstallPlugins(input.businessType);
+  const installedPlugins: string[] = [];
+
+  for (const pluginId of pluginsToInstall) {
+    try {
+      await pluginEngine.installPlugin(shopId, pluginId);
+      installedPlugins.push(pluginId);
+    } catch (error) {
+      console.error(`Auto-install failed for ${pluginId}:`, error);
+    }
+  }
+
+  return {
+    businessType: input.businessType,
+    autoInstalledPlugins: installedPlugins,
+  };
+}
 
   async getAvailablePlugins(shopId: string) {
     const shop = await shopsRepository.getShopById(shopId);
