@@ -22,19 +22,23 @@ Built as a portfolio project to demonstrate production-grade architecture decisi
 ## 🛠️ Tech Stack
 
 **Backend**
+
 - Node.js v24 + Express v4 + TypeScript v6
 - Drizzle ORM (TypeScript-first, SQL-like syntax)
 - PostgreSQL v18 with Row Level Security (RLS)
 
 **Auth & Security**
+
 - JWT (stateless authentication) + bcrypt (password hashing)
 - PostgreSQL RLS — database-level tenant isolation, not just application-level
 - Manager PIN approval workflow for sensitive cashier actions
 
 **Integrations**
+
 - Nodemailer + Gmail SMTP — transactional emails (receipts, welcome emails, low-stock alerts)
 
 **DevOps**
+
 - Docker + Docker Compose (local containerized development)
 - Deployed via Railway (backend), Supabase (PostgreSQL, Singapore region), Vercel (frontend — separate repo)
 
@@ -43,37 +47,44 @@ Built as a portfolio project to demonstrate production-grade architecture decisi
 ## ✨ Key Features
 
 **Multi-Tenancy & Security**
+
 - Shared-schema architecture with PostgreSQL RLS enforced at the database level
 - Role-based access control: `shop_owner`, `shop_manager`, `cashier`
 - Manager PIN approval required for cashier-initiated returns
 - Full audit log of sensitive actions (staff changes, settings updates, returns, plugin installs)
 
 **Shop Onboarding**
+
 - Business type selection with automatic default category seeding
 - Business-type-aware plugin auto-installation
 
 **Products & Inventory**
+
 - Product/Service distinction — services skip inventory tracking entirely
 - Dedicated inventory module with low-stock detection and configurable reorder points
 - Category management per shop
 
 **Point of Sale**
+
 - Full transaction lifecycle with per-product tax calculation
 - Split payment methods (cash / card / online), gated by installed plugins
 - Returns & refunds with partial-return support and inventory auto-restoration
 
 **Customer CRM & Loyalty**
+
 - Customer profiles with lifetime spend, visit history, and purchase history
 - Points-based loyalty program with Bronze/Silver/Gold tiers
 - Configurable earning rates, redemption values, and tier thresholds per shop
 - Atomic point redemption — bundled into the transaction itself, never a separate pre-checkout call
 
 **Plugin Architecture**
+
 - Custom-built Plugin Engine with lifecycle hooks (`onInstall`, `onUninstall`, `beforeCheckout`, `afterSale`)
-- Business type (what a shop *is*) is fully decoupled from installed plugins (what a shop *uses*)
+- Business type (what a shop _is_) is fully decoupled from installed plugins (what a shop _uses_)
 - Product Variants plugin — dynamic, business-agnostic attributes (size/color for fashion, volume/type for salons, dosage/form for pharmacies) instead of hardcoded fields
 
 **Reports & Notifications**
+
 - Sales, top-products, payment-method, and cashier-performance reports
 - Automated email notifications: shop welcome, staff welcome, customer welcome, purchase receipts, daily low-stock alerts — each individually toggleable per shop
 
@@ -119,6 +130,7 @@ src/
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js v24+
 - PostgreSQL v18+
 - Docker & Docker Compose (optional, for containerized setup)
@@ -148,29 +160,29 @@ docker-compose up --build -d
 
 ## 🔐 Environment Variables
 
-| Variable | Description |
-|---|---|
-| `NODE_ENV` | `development` or `production` |
-| `PORT` | Backend server port |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Strong random secret for signing tokens — never use a placeholder value |
-| `JWT_EXPIRES_IN` | Token expiry (e.g. `7d`) |
-| `FRONTEND_URL` | Deployed frontend origin, for CORS |
-| `GMAIL_USER` | Sender Gmail address for transactional emails |
-| `GMAIL_APP_PASSWORD` | Gmail App Password (not your regular account password) |
+| Variable             | Description                                                             |
+| -------------------- | ----------------------------------------------------------------------- |
+| `NODE_ENV`           | `development` or `production`                                           |
+| `PORT`               | Backend server port                                                     |
+| `DATABASE_URL`       | PostgreSQL connection string                                            |
+| `JWT_SECRET`         | Strong random secret for signing tokens — never use a placeholder value |
+| `JWT_EXPIRES_IN`     | Token expiry (e.g. `7d`)                                                |
+| `FRONTEND_URL`       | Deployed frontend origin, for CORS                                      |
+| `GMAIL_USER`         | Sender Gmail address for transactional emails                           |
+| `GMAIL_APP_PASSWORD` | Gmail App Password (not your regular account password)                  |
 
 ---
 
 ## 📜 Available Scripts
 
-| Script | Command | Description |
-|---|---|---|
-| Development | `npm run dev` | Start dev server with hot reload |
-| Build | `npm run build` | Compile TypeScript |
-| Start | `npm start` | Run production build |
-| DB Generate | `npm run db:generate` | Generate migrations |
-| DB Migrate | `npm run db:migrate` | Run migrations |
-| DB Studio | `npm run db:studio` | Open Drizzle Studio |
+| Script      | Command               | Description                      |
+| ----------- | --------------------- | -------------------------------- |
+| Development | `npm run dev`         | Start dev server with hot reload |
+| Build       | `npm run build`       | Compile TypeScript               |
+| Start       | `npm start`           | Run production build             |
+| DB Generate | `npm run db:generate` | Generate migrations              |
+| DB Migrate  | `npm run db:migrate`  | Run migrations                   |
+| DB Studio   | `npm run db:studio`   | Open Drizzle Studio              |
 
 ---
 
@@ -189,11 +201,11 @@ fix/*        → bug fixes, deleted after merge
 
 ## ☁️ Deployment
 
-| Layer | Platform |
-|---|---|
-| Backend API | Railway |
-| Database | Supabase (PostgreSQL, Singapore region) |
-| Frontend | Vercel |
+| Layer       | Platform                                |
+| ----------- | --------------------------------------- |
+| Backend API | Railway                                 |
+| Database    | Supabase (PostgreSQL, Singapore region) |
+| Frontend    | Vercel                                  |
 
 CI/CD is active on push to `main` for both Railway and Vercel.
 
