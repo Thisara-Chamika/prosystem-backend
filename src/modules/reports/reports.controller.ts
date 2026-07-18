@@ -90,4 +90,19 @@ export class ReportsController {
       res.status(400).json({ success: false, message: error.message });
     }
   }
+
+  // GET /api/reports/revenue-trends
+  async getRevenueTrends(req: Request, res: Response): Promise<void> {
+  try {
+    const shopId = req.user!.shopId!;
+    const period = (req.query.period as 'week' | 'month' | 'quarter') ?? 'month';
+
+    const data = await reportsService.getRevenueTrends(shopId, period);
+
+    res.status(200).json({ success: true, data });
+
+  } catch (error: any) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+}
 }

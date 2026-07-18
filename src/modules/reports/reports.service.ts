@@ -199,4 +199,101 @@ export class ReportsService {
       }))
       .sort((a, b) => b.totalRevenue - a.totalRevenue);
   }
+
+  async getRevenueTrends(
+  shopId: string,
+  period: 'week' | 'month' | 'quarter' = 'month'
+) {
+  const now = new Date();
+  const currentTo = new Date(now);
+  currentTo.setUTCHours(23, 59, 59, 999);
+
+  let elapsedDays: number;
+  let periodLabel: string;
+  let groupByWeek = false;
+
+  if (period === 'week') {
+    elapsedDays = now.getUTCDate() > 7 ? 7 : now.getUTCDate();
+    // For week, always use a rolling 7-day window
+    elapsedDays = 7;
+    periodLabel = 'This Week';
+  } else if (period === 'quarter') {
+    const quarterStartMonth = Math.floor(now.getUTCMonth() / 3) * 3;
+    const quarterStart = new Date(Date.UTC(now.getUTCFullYear(), quarterStartMonth, 1));
+    elapsedDays = Math.ceil(
+      (currentTo.getTime() - quarterStart.getTime()) / (1000 * 60 * 60 * 24)
+    ) + 1;
+    groupByWeek = true;
+    periodLabel = `Q${Math.floor(now.getUTCMonth() / 3) + 1} ${now.getUTCFullYear()}`;
+  } else {
+    // month
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    elapsedDays = Math.ceil(
+      (currentTo.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)
+    ) + 1;
+    periodLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  }
+
+  const currentFrom = new Date(currentTo);
+  currentFrom.setUTCDate(currentFrom.getUTCDate() - (elapsedDays - 1));
+  currentFrom.setUTCHours(0, 0, 0, 0);
+
+  const previousTo = new Date(currentFrom);
+  previousTo.setUTCDate(previousTo.getUTCDate() - 1);
+  previousTo.setUTCHours(23, 59, 59, 999);
+
+  const previousFrom = new Date(previousTo);
+  previousFrom.setUTCDate(previousFrom.getUTCDate() - (elapsedDays - 1));
+  previousFrom.setUTCHours(0, 0, 0, 0);
+
+  const previousLabel = previousFrom.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+  const { current, previous } = await reportsRepository.getRevenueTrends(
+    shopId, currentFrom, currentTo, previousFrom, previousTo
+  );
+
+  const currentRevenue = current.reduce((sum, t) => sum + parseFloat(t.total), 0);
+  const previousRevenue = previous.reduce((sum, t) => sum + parseFloat(t.total), 0);
+
+  const growthPercent = this.calcChange(currentRevenue, previousRevenue);
+
+  // Build trend — daily for week/month, weekly for quarter
+  const trendMap: Record<string, number> = {};
+
+  for (const txn of current) {
+    let key: string;
+    if (groupByWeek) {
+      const txnDate = new Date(txn.createdAt);
+      const weekStart = new Date(txnDate);
+      weekStart.setUTCDate(txnDate.getUTCDate() - txnDate.getUTCDay());
+      key = weekStart.toISOString().split('T')[0];
+    } else {
+      key = txn.createdAt.toISOString().split('T')[0];
+    }
+    trendMap[key] = (trendMap[key] ?? 0) + parseFloat(txn.total);
+  }
+
+  const trend = Object.entries(trendMap)
+    .map(([date, revenue]) => ({
+      date,
+      revenue: parseFloat(revenue.toFixed(2)),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  return {
+    period,
+    current: {
+      label: periodLabel,
+      revenue: parseFloat(currentRevenue.toFixed(2)),
+      transactions: current.length,
+    },
+    previous: {
+      label: previousLabel,
+      revenue: parseFloat(previousRevenue.toFixed(2)),
+      transactions: previous.length,
+    },
+    growthPercent,
+    trend,
+  };
+}
 }

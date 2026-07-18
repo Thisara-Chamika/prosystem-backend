@@ -174,4 +174,39 @@ export class ReportsRepository {
 
     return { txns, allReturns, cashiers };
   }
+
+  // ── REVENUE TRENDS ────────────────────────────────
+async getRevenueTrends(
+  shopId: string,
+  currentFrom: Date,
+  currentTo: Date,
+  previousFrom: Date,
+  previousTo: Date
+) {
+  const current = await db
+    .select()
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.shopId, shopId),
+        eq(transactions.status, 'completed' as any),
+        gte(transactions.createdAt, currentFrom),
+        lte(transactions.createdAt, currentTo)
+      )
+    );
+
+  const previous = await db
+    .select()
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.shopId, shopId),
+        eq(transactions.status, 'completed' as any),
+        gte(transactions.createdAt, previousFrom),
+        lte(transactions.createdAt, previousTo)
+      )
+    );
+
+  return { current, previous };
+}
 }

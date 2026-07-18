@@ -39,4 +39,10 @@ router.get(
   reportsController.getCashierSummary.bind(reportsController)
 );
 
+// GET /api/reports/revenue-trends
+router.get(
+  '/revenue-trends',
+  reportsController.getRevenueTrends.bind(reportsController)
+);
+
 export default router;
