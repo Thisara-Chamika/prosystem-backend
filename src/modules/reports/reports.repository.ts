@@ -1,9 +1,9 @@
 import { db } from "../../config/database";
 import { transactions } from "../../db/schema/transactions";
 import { transactionItems } from "../../db/schema/transactions";
-import { returns } from "../../db/schema/returns";
+import { returns, returnItems } from "../../db/schema/returns";
 import { users } from "../../db/schema/users";
-import { eq, and, gte, lte, sum, count, desc } from "drizzle-orm";
+import { eq, and, gte, lte, inArray, or } from "drizzle-orm";
 import { customers } from "../../db/schema/customers";
 import { inventory } from "../../db/schema/inventory";
 import { products } from "../../db/schema/products";
@@ -280,5 +280,78 @@ export class ReportsRepository {
       .where(eq(inventory.shopId, shopId));
 
     return items;
+  }
+
+  // ── RETURNS ANALYSIS ──────────────────────────────
+  async getReturnsAnalysis(shopId: string, fromDate: Date, toDate: Date) {
+    const returnsInPeriod = await db
+      .select()
+      .from(returns)
+      .where(
+        and(
+          eq(returns.shopId, shopId),
+          gte(returns.createdAt, fromDate),
+          lte(returns.createdAt, toDate),
+        ),
+      );
+
+    // Item-level reasons — need to join return_items to their parent
+    // returns, filtered to the same period
+    const returnIds = returnsInPeriod.map((r) => r.returnId);
+
+    let itemsWithReasons: {
+      reason: string | null;
+      productId: string;
+      quantity: number;
+      total: string;
+    }[] = [];
+
+    if (returnIds.length > 0) {
+      itemsWithReasons = await db
+        .select({
+          reason: returnItems.reason,
+          productId: returnItems.productId,
+          quantity: returnItems.quantity,
+          total: returnItems.total,
+        })
+        .from(returnItems)
+        .where(inArray(returnItems.returnId, returnIds));
+    }
+
+    // Transactions in the SAME period, for the returnRate denominator —
+    // includes completed + refunded + partial_refund, excludes only cancelled
+    const eligibleTransactions = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.shopId, shopId),
+          or(
+            eq(transactions.status, "completed" as any),
+            eq(transactions.status, "refunded" as any),
+            eq(transactions.status, "partial_refund" as any),
+          ),
+          gte(transactions.createdAt, fromDate),
+          lte(transactions.createdAt, toDate),
+        ),
+      );
+
+    // Product names for mostReturnedProducts — join once, reuse
+    const productIds = [...new Set(itemsWithReasons.map((i) => i.productId))];
+    let productNames: { productId: string; name: string }[] = [];
+
+    if (productIds.length > 0) {
+      productNames = await db
+        .select({ productId: products.productId, name: products.name })
+        .from(products)
+        .where(inArray(products.productId, productIds));
+    }
+
+    return {
+      returnsInPeriod,
+      itemsWithReasons,
+      eligibleTransactions,
+      productNames,
+    };
   }
 }

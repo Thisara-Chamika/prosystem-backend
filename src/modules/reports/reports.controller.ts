@@ -131,4 +131,22 @@ export class ReportsController {
       res.status(400).json({ success: false, message: error.message });
     }
   }
+
+  // GET /api/reports/returns-analysis
+  async getReturnsAnalysis(req: Request, res: Response): Promise<void> {
+    try {
+      const shopId = req.user!.shopId!;
+      const { fromDate, toDate } = req.query as Record<string, string>;
+
+      const data = await reportsService.getReturnsAnalysis(
+        shopId,
+        fromDate,
+        toDate,
+      );
+
+      res.status(200).json({ success: true, data });
+    } catch (error: any) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
 }

@@ -474,4 +474,75 @@ export class ReportsService {
       byCategory,
     };
   }
+
+  // ── RETURNS ANALYSIS ───────────────────────────────
+  async getReturnsAnalysis(shopId: string, fromDate?: string, toDate?: string) {
+    const { from, to } = this.getDateRange(fromDate, toDate);
+
+    const {
+      returnsInPeriod,
+      itemsWithReasons,
+      eligibleTransactions,
+      productNames,
+    } = await reportsRepository.getReturnsAnalysis(shopId, from, to);
+
+    const totalReturns = returnsInPeriod.length;
+    const totalRefundAmount = returnsInPeriod.reduce(
+      (sum, r) => sum + parseFloat(r.totalRefund),
+      0,
+    );
+
+    // returnRate — against completed + refunded + partial_refund transactions
+    // (the bug fix agreed earlier: excluding only cancelled, not filtering
+    // down to completed-only, which would wrongly exclude every transaction
+    // that actually had a return processed against it)
+    const totalTransactions = eligibleTransactions.length;
+    const returnRate =
+      totalTransactions > 0
+        ? parseFloat(((totalReturns / totalTransactions) * 100).toFixed(2))
+        : 0;
+
+    // reasonBreakdown — item-level, per the agreed decision
+    const reasonMap: Record<string, number> = {};
+    for (const item of itemsWithReasons) {
+      const reason = item.reason ?? "Not specified";
+      reasonMap[reason] = (reasonMap[reason] ?? 0) + 1;
+    }
+    const reasonBreakdown = Object.entries(reasonMap)
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // mostReturnedProducts — group return items by product
+    const productMap: Record<
+      string,
+      { returnCount: number; returnValue: number }
+    > = {};
+    for (const item of itemsWithReasons) {
+      if (!productMap[item.productId]) {
+        productMap[item.productId] = { returnCount: 0, returnValue: 0 };
+      }
+      productMap[item.productId].returnCount += item.quantity;
+      productMap[item.productId].returnValue += parseFloat(item.total);
+    }
+
+    const nameMap = new Map(productNames.map((p) => [p.productId, p.name]));
+
+    const mostReturnedProducts = Object.entries(productMap)
+      .map(([productId, data]) => ({
+        productId,
+        productName: nameMap.get(productId) ?? "Unknown Product",
+        returnCount: data.returnCount,
+        returnValue: parseFloat(data.returnValue.toFixed(2)),
+      }))
+      .sort((a, b) => b.returnCount - a.returnCount)
+      .slice(0, 10);
+
+    return {
+      totalReturns,
+      totalRefundAmount: parseFloat(totalRefundAmount.toFixed(2)),
+      returnRate,
+      reasonBreakdown,
+      mostReturnedProducts,
+    };
+  }
 }
