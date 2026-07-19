@@ -408,4 +408,70 @@ export class ReportsService {
       atRiskCustomers,
     };
   }
+
+  // ── INVENTORY VALUATION ───────────────────────────
+  async getInventoryValuation(shopId: string) {
+    const items = await reportsRepository.getInventoryValuation(shopId);
+
+    let totalValueAtCost = 0;
+    let totalValueAtRetail = 0;
+    let totalUnitsInStock = 0;
+
+    const categoryMap: Record<
+      string,
+      {
+        valueAtCost: number;
+        valueAtRetail: number;
+        units: number;
+      }
+    > = {};
+
+    for (const item of items) {
+      const quantity = item.quantity;
+      const price = parseFloat(item.price);
+      const cost = item.cost ? parseFloat(item.cost) : null;
+      const category = item.category ?? "Uncategorized";
+
+      const retailValue = quantity * price;
+      totalValueAtRetail += retailValue;
+      totalUnitsInStock += quantity;
+
+      // Handle NULL cost — exclude from cost calc, still count in retail
+      const costValue = cost !== null ? quantity * cost : 0;
+      if (cost !== null) {
+        totalValueAtCost += costValue;
+      }
+
+      if (!categoryMap[category]) {
+        categoryMap[category] = { valueAtCost: 0, valueAtRetail: 0, units: 0 };
+      }
+      categoryMap[category].valueAtRetail += retailValue;
+      categoryMap[category].units += quantity;
+      if (cost !== null) {
+        categoryMap[category].valueAtCost += costValue;
+      }
+    }
+
+    const potentialProfit = totalValueAtRetail - totalValueAtCost;
+    const potentialMarginPercent =
+      totalValueAtRetail > 0
+        ? parseFloat(((potentialProfit / totalValueAtRetail) * 100).toFixed(2))
+        : 0;
+
+    const byCategory = Object.entries(categoryMap).map(([category, data]) => ({
+      category,
+      valueAtCost: parseFloat(data.valueAtCost.toFixed(2)),
+      valueAtRetail: parseFloat(data.valueAtRetail.toFixed(2)),
+      units: data.units,
+    }));
+
+    return {
+      totalValueAtCost: parseFloat(totalValueAtCost.toFixed(2)),
+      totalValueAtRetail: parseFloat(totalValueAtRetail.toFixed(2)),
+      potentialProfit: parseFloat(potentialProfit.toFixed(2)),
+      potentialMarginPercent,
+      totalUnitsInStock,
+      byCategory,
+    };
+  }
 }

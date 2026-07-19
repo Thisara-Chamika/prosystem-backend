@@ -119,4 +119,16 @@ export class ReportsController {
       res.status(400).json({ success: false, message: error.message });
     }
   }
+
+  // GET /api/reports/inventory-valuation
+  async getInventoryValuation(req: Request, res: Response): Promise<void> {
+    try {
+      const shopId = req.user!.shopId!;
+      const data = await reportsService.getInventoryValuation(shopId);
+
+      res.status(200).json({ success: true, data });
+    } catch (error: any) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
 }

@@ -48,4 +48,10 @@ router.get(
   reportsController.getCustomerAnalytics.bind(reportsController),
 );
 
+// GET /api/reports/inventory-valuation
+router.get(
+  '/inventory-valuation',
+  reportsController.getInventoryValuation.bind(reportsController)
+);
+
 export default router;

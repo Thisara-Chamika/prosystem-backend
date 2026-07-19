@@ -5,6 +5,8 @@ import { returns } from "../../db/schema/returns";
 import { users } from "../../db/schema/users";
 import { eq, and, gte, lte, sum, count, desc } from "drizzle-orm";
 import { customers } from "../../db/schema/customers";
+import { inventory } from "../../db/schema/inventory";
+import { products } from "../../db/schema/products";
 
 export class ReportsRepository {
   // ── SUMMARY ───────────────────────────────────────
@@ -254,5 +256,29 @@ export class ReportsRepository {
       .where(eq(customers.shopId, shopId));
 
     return { newCustomersInPeriod, periodTransactions, allCustomers };
+  }
+
+  // ── INVENTORY VALUATION ───────────────────────────
+  async getInventoryValuation(shopId: string) {
+    const items = await db
+      .select({
+        quantity: inventory.quantity,
+        cost: products.cost,
+        price: products.price,
+        category: products.category,
+      })
+      .from(inventory)
+      .innerJoin(
+        products,
+        and(
+          eq(products.productId, inventory.productId),
+          eq(products.shopId, shopId),
+          eq(products.isActive, true),
+          eq(products.productType, "product"),
+        ),
+      )
+      .where(eq(inventory.shopId, shopId));
+
+    return items;
   }
 }
