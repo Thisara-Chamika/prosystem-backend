@@ -545,4 +545,54 @@ export class ReportsService {
       mostReturnedProducts,
     };
   }
+
+  // ── EXPORT: CSV formatting ─────────────────────────
+exportToCsv(reportType: string, data: any): string {
+  const rows: string[] = [];
+  const escapeCsv = (val: any): string => {
+    const str = String(val ?? '');
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  // Top-level scalar fields first
+  const scalarEntries = Object.entries(data).filter(
+    ([, v]) => !Array.isArray(v) && typeof v !== 'object'
+  );
+  if (scalarEntries.length > 0) {
+    rows.push(scalarEntries.map(([k]) => escapeCsv(k)).join(','));
+    rows.push(scalarEntries.map(([, v]) => escapeCsv(v)).join(','));
+    rows.push('');
+  }
+
+  // Nested objects with a single level (e.g. current/previous in revenue-trends)
+  const objectEntries = Object.entries(data).filter(
+    ([, v]) => !Array.isArray(v) && typeof v === 'object' && v !== null
+  );
+  for (const [key, value] of objectEntries) {
+    rows.push(`${key}`);
+    const entries = Object.entries(value as object);
+    rows.push(entries.map(([k]) => escapeCsv(k)).join(','));
+    rows.push(entries.map(([, v]) => escapeCsv(v)).join(','));
+    rows.push('');
+  }
+
+  // Array fields (trend, byCategory, topCustomers, etc.)
+  const arrayEntries = Object.entries(data).filter(([, v]) => Array.isArray(v));
+  for (const [key, arr] of arrayEntries) {
+    const list = arr as any[];
+    if (list.length === 0) continue;
+    rows.push(`${key}`);
+    const headers = Object.keys(list[0]);
+    rows.push(headers.map(h => escapeCsv(h)).join(','));
+    for (const item of list) {
+      rows.push(headers.map(h => escapeCsv(item[h])).join(','));
+    }
+    rows.push('');
+  }
+
+  return rows.join('\n');
+}
 }

@@ -60,4 +60,10 @@ router.get(
   reportsController.getReturnsAnalysis.bind(reportsController)
 );
 
+// GET /api/reports/export
+router.get(
+  '/export',
+  reportsController.exportReport.bind(reportsController)
+);
+
 export default router;
