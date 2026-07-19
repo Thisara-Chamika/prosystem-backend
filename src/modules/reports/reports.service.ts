@@ -322,4 +322,90 @@ export class ReportsService {
       trend,
     };
   }
+
+  // ── CUSTOMER ANALYTICS ────────────────────────────
+  async getCustomerAnalytics(
+    shopId: string,
+    fromDate?: string,
+    toDate?: string,
+  ) {
+    const { from, to } = this.getDateRange(fromDate, toDate);
+
+    const { newCustomersInPeriod, periodTransactions, allCustomers } =
+      await reportsRepository.getCustomerAnalytics(shopId, from, to);
+
+    // newCustomers — created within the period
+    const newCustomers = newCustomersInPeriod.length;
+
+    // returningCustomers — made a purchase in this period
+    // AND were created BEFORE fromDate (existing customers, not brand new)
+    const customersWhoTransacted = new Set(
+      periodTransactions
+        .filter((t) => t.customerId !== null)
+        .map((t) => t.customerId as string),
+    );
+
+    const customerMap = new Map(allCustomers.map((c) => [c.customerId, c]));
+
+    let returningCustomers = 0;
+    for (const customerId of customersWhoTransacted) {
+      const customer = customerMap.get(customerId);
+      if (customer && customer.createdAt < from) {
+        returningCustomers++;
+      }
+    }
+
+    const totalActiveCustomers = customersWhoTransacted.size;
+
+    // topCustomers — top 10 by totalSpent, ALL TIME (not period-scoped,
+    // per spec — this reads the running totalSpent field maintained
+    // by the loyalty/CRM module, not a period-filtered sum)
+    const topCustomers = [...allCustomers]
+      .filter((c) => parseFloat(c.totalSpent?.toString() ?? "0") > 0)
+      .sort(
+        (a, b) =>
+          parseFloat(b.totalSpent?.toString() ?? "0") -
+          parseFloat(a.totalSpent?.toString() ?? "0"),
+      )
+      .slice(0, 10)
+      .map((c) => ({
+        customerId: c.customerId,
+        name: `${c.firstName} ${c.lastName}`,
+        totalSpent: parseFloat(c.totalSpent?.toString() ?? "0"),
+        totalVisits: c.totalVisits ?? 0,
+        loyaltyTier: c.loyaltyTier,
+      }));
+
+    // atRiskCustomers — lastVisit > 30 days ago AND totalSpent > 0
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
+
+    const atRiskCustomers = allCustomers
+      .filter((c) => {
+        const spent = parseFloat(c.totalSpent?.toString() ?? "0");
+        return spent > 0 && c.lastVisit && c.lastVisit < thirtyDaysAgo;
+      })
+      .map((c) => {
+        const daysSinceVisit = Math.floor(
+          (Date.now() - c.lastVisit!.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        return {
+          customerId: c.customerId,
+          name: `${c.firstName} ${c.lastName}`,
+          lastVisit: c.lastVisit,
+          daysSinceVisit,
+          totalSpent: parseFloat(c.totalSpent?.toString() ?? "0"),
+        };
+      })
+      .sort((a, b) => b.totalSpent - a.totalSpent)
+      .slice(0, 10);
+
+    return {
+      newCustomers,
+      returningCustomers,
+      totalActiveCustomers,
+      topCustomers,
+      atRiskCustomers,
+    };
+  }
 }

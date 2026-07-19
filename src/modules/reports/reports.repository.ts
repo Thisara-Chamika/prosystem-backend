@@ -1,12 +1,12 @@
-import { db } from '../../config/database';
-import { transactions } from '../../db/schema/transactions';
-import { transactionItems } from '../../db/schema/transactions';
-import { returns } from '../../db/schema/returns';
-import { users } from '../../db/schema/users';
-import { eq, and, gte, lte, sum, count, desc } from 'drizzle-orm';
+import { db } from "../../config/database";
+import { transactions } from "../../db/schema/transactions";
+import { transactionItems } from "../../db/schema/transactions";
+import { returns } from "../../db/schema/returns";
+import { users } from "../../db/schema/users";
+import { eq, and, gte, lte, sum, count, desc } from "drizzle-orm";
+import { customers } from "../../db/schema/customers";
 
 export class ReportsRepository {
-
   // ── SUMMARY ───────────────────────────────────────
   async getSummary(shopId: string, fromDate: Date, toDate: Date) {
     // Current period transactions
@@ -16,10 +16,10 @@ export class ReportsRepository {
       .where(
         and(
           eq(transactions.shopId, shopId),
-          eq(transactions.status, 'completed' as any),
+          eq(transactions.status, "completed" as any),
           gte(transactions.createdAt, fromDate),
-          lte(transactions.createdAt, toDate)
-        )
+          lte(transactions.createdAt, toDate),
+        ),
       );
 
     // Previous period (same duration, day before)
@@ -33,10 +33,10 @@ export class ReportsRepository {
       .where(
         and(
           eq(transactions.shopId, shopId),
-          eq(transactions.status, 'completed' as any),
+          eq(transactions.status, "completed" as any),
           gte(transactions.createdAt, prevFromDate),
-          lte(transactions.createdAt, prevToDate)
-        )
+          lte(transactions.createdAt, prevToDate),
+        ),
       );
 
     return { current, previous };
@@ -50,10 +50,10 @@ export class ReportsRepository {
       .where(
         and(
           eq(transactions.shopId, shopId),
-          eq(transactions.status, 'completed' as any),
+          eq(transactions.status, "completed" as any),
           gte(transactions.createdAt, fromDate),
-          lte(transactions.createdAt, toDate)
-        )
+          lte(transactions.createdAt, toDate),
+        ),
       )
       .orderBy(transactions.createdAt);
 
@@ -61,7 +61,12 @@ export class ReportsRepository {
   }
 
   // ── TOP PRODUCTS ──────────────────────────────────
-  async getTopProducts(shopId: string, fromDate: Date, toDate: Date, limit: number) {
+  async getTopProducts(
+    shopId: string,
+    fromDate: Date,
+    toDate: Date,
+    limit: number,
+  ) {
     // Get all completed transaction IDs in date range
     const completedTxns = await db
       .select({ transactionId: transactions.transactionId })
@@ -69,10 +74,10 @@ export class ReportsRepository {
       .where(
         and(
           eq(transactions.shopId, shopId),
-          eq(transactions.status, 'completed' as any),
+          eq(transactions.status, "completed" as any),
           gte(transactions.createdAt, fromDate),
-          lte(transactions.createdAt, toDate)
-        )
+          lte(transactions.createdAt, toDate),
+        ),
       );
 
     if (completedTxns.length === 0) return [];
@@ -84,19 +89,22 @@ export class ReportsRepository {
       .where(eq(transactionItems.shopId, shopId));
 
     // Filter items belonging to completed transactions
-    const txnIds = new Set(completedTxns.map(t => t.transactionId));
-    const filteredItems = allItems.filter(item =>
-      txnIds.has(item.transactionId)
+    const txnIds = new Set(completedTxns.map((t) => t.transactionId));
+    const filteredItems = allItems.filter((item) =>
+      txnIds.has(item.transactionId),
     );
 
     // Aggregate by product
-    const productMap: Record<string, {
-      productId: string;
-      productName: string;
-      sku: string;
-      quantitySold: number;
-      revenue: number;
-    }> = {};
+    const productMap: Record<
+      string,
+      {
+        productId: string;
+        productName: string;
+        sku: string;
+        quantitySold: number;
+        revenue: number;
+      }
+    > = {};
 
     for (const item of filteredItems) {
       if (!productMap[item.productId]) {
@@ -126,10 +134,10 @@ export class ReportsRepository {
       .where(
         and(
           eq(transactions.shopId, shopId),
-          eq(transactions.status, 'completed' as any),
+          eq(transactions.status, "completed" as any),
           gte(transactions.createdAt, fromDate),
-          lte(transactions.createdAt, toDate)
-        )
+          lte(transactions.createdAt, toDate),
+        ),
       );
 
     return result;
@@ -144,10 +152,10 @@ export class ReportsRepository {
       .where(
         and(
           eq(transactions.shopId, shopId),
-          eq(transactions.status, 'completed' as any),
+          eq(transactions.status, "completed" as any),
           gte(transactions.createdAt, fromDate),
-          lte(transactions.createdAt, toDate)
-        )
+          lte(transactions.createdAt, toDate),
+        ),
       );
 
     // Get all returns in date range
@@ -158,8 +166,8 @@ export class ReportsRepository {
         and(
           eq(returns.shopId, shopId),
           gte(returns.createdAt, fromDate),
-          lte(returns.createdAt, toDate)
-        )
+          lte(returns.createdAt, toDate),
+        ),
       );
 
     // Get all cashiers for this shop
@@ -176,37 +184,75 @@ export class ReportsRepository {
   }
 
   // ── REVENUE TRENDS ────────────────────────────────
-async getRevenueTrends(
-  shopId: string,
-  currentFrom: Date,
-  currentTo: Date,
-  previousFrom: Date,
-  previousTo: Date
-) {
-  const current = await db
-    .select()
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.shopId, shopId),
-        eq(transactions.status, 'completed' as any),
-        gte(transactions.createdAt, currentFrom),
-        lte(transactions.createdAt, currentTo)
-      )
-    );
+  async getRevenueTrends(
+    shopId: string,
+    currentFrom: Date,
+    currentTo: Date,
+    previousFrom: Date,
+    previousTo: Date,
+  ) {
+    const current = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.shopId, shopId),
+          eq(transactions.status, "completed" as any),
+          gte(transactions.createdAt, currentFrom),
+          lte(transactions.createdAt, currentTo),
+        ),
+      );
 
-  const previous = await db
-    .select()
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.shopId, shopId),
-        eq(transactions.status, 'completed' as any),
-        gte(transactions.createdAt, previousFrom),
-        lte(transactions.createdAt, previousTo)
-      )
-    );
+    const previous = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.shopId, shopId),
+          eq(transactions.status, "completed" as any),
+          gte(transactions.createdAt, previousFrom),
+          lte(transactions.createdAt, previousTo),
+        ),
+      );
 
-  return { current, previous };
-}
+    return { current, previous };
+  }
+
+  // ── CUSTOMER ANALYTICS ────────────────────────────
+  async getCustomerAnalytics(shopId: string, fromDate: Date, toDate: Date) {
+    // Customers created within the period
+    const newCustomersInPeriod = await db
+      .select()
+      .from(customers)
+      .where(
+        and(
+          eq(customers.shopId, shopId),
+          gte(customers.createdAt, fromDate),
+          lte(customers.createdAt, toDate),
+        ),
+      );
+
+    // All transactions in the period (completed only — a cancelled
+    // sale shouldn't count as "activity" for this metric)
+    const periodTransactions = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.shopId, shopId),
+          eq(transactions.status, "completed" as any),
+          gte(transactions.createdAt, fromDate),
+          lte(transactions.createdAt, toDate),
+        ),
+      );
+
+    // All customers for this shop (needed to check createdAt
+    // for "returning" classification, and for topCustomers/atRisk)
+    const allCustomers = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.shopId, shopId));
+
+    return { newCustomersInPeriod, periodTransactions, allCustomers };
+  }
 }
