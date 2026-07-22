@@ -4,6 +4,7 @@ export interface CreateTransactionInput {
   paymentMethod: 'cash' | 'card' | 'online' | 'mixed';
   discount?: number;
   pointsToRedeem?: number; 
+  stripePaymentIntentId?: string;
   notes?: string;
 }
 
