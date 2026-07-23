@@ -19,12 +19,17 @@ import variantsRoutes from "./plugins/product-variants/variants.routes";
 import auditLogsRoutes from "./modules/audit-logs/audit-logs.routes";
 import loyaltyRoutes from "./modules/loyalty/loyalty.routes";
 import paymentsRoutes from './modules/payments/payments.routes';
+import stripeWebhookRoutes from './modules/payments/webhook.routes';
 
 // Load environment variables
 dotenv.config();
 
 // Create Express app
 const app: Application = express();
+
+// ─── Stripe Webhook Route ───────────────────────
+// This route must be defined before the JSON body parser middleware
+app.use('/api/webhooks/stripe', stripeWebhookRoutes);
 
 // ─── Middlewares ──────────────────────────────
 // Parse incoming JSON requests

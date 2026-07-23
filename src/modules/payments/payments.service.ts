@@ -46,6 +46,19 @@ export class PaymentsService {
       ...(amountInCents !== undefined ? { amount: amountInCents } : {}),
     });
   }
+
+  // Construct a Stripe webhook event from the raw request body and signature header.
+
+constructWebhookEvent(rawBody: Buffer, signature: string) {
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    throw new Error('STRIPE_WEBHOOK_SECRET is not set!');
+  }
+  return stripe.webhooks.constructEvent(
+    rawBody,
+    signature,
+    process.env.STRIPE_WEBHOOK_SECRET
+  );
+}
 }
 
 export const paymentsService = new PaymentsService();
