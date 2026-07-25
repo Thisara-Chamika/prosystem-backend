@@ -44,6 +44,8 @@ export const returns = pgTable('returns', {
   status: varchar('status', { length: 20 })
     .default('completed'),
 
+  stripeRefundId: varchar('stripe_refund_id', { length: 255 }),
+
   createdAt: timestamp('created_at', { mode: 'date' })
     .defaultNow()
     .notNull(),
