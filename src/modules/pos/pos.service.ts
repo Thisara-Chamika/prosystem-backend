@@ -52,9 +52,27 @@ export class PosService {
       }
 
       // Calculate item total
-      const unitPrice = parseFloat(product.price);
-      const itemDiscount = item.discount ?? 0;
-      const itemSubtotal = unitPrice * item.quantity - itemDiscount;
+      // Calculate item total — base price + variant adjustment if applicable
+  let unitPrice = parseFloat(product.price);
+
+  if (item.variantId) {
+    const variant = await posRepository.getVariantPriceAdjustment(
+      item.variantId,
+      shopId
+    );
+
+    if (!variant) {
+      throw new Error(
+        `Selected variant not found for ${product.name}!`
+      );
+    }
+
+    const priceAdjustment = parseFloat(variant.priceAdjustment ?? '0');
+    unitPrice += priceAdjustment;
+  }
+
+  const itemDiscount = item.discount ?? 0;
+  const itemSubtotal = unitPrice * item.quantity - itemDiscount;
 
       // ── Calculate tax per product ──────────────────
       const productTaxRate = parseFloat(product.taxRate ?? "0") / 100;
@@ -74,6 +92,7 @@ export class PosService {
         total: String(itemSubtotal),
         transactionId: "",
         productType: product.productType,
+        variantId: item.variantId ?? null,
       });
     }
 
@@ -81,6 +100,14 @@ export class PosService {
     const discount = input.discount ?? 0;
     const tax = totalTax;
     const total = subtotal - discount + tax;
+
+    if (total < 0) {
+      throw new Error(
+        `Calculated transaction total is negative (${total.toFixed(2)}). ` +
+        `Check the discount value — subtotal: ${subtotal.toFixed(2)}, ` +
+        `tax: ${tax.toFixed(2)}, discount: ${discount.toFixed(2)}.`
+      );
+    }
 
     // ── Verify card payment with Stripe (never trust the frontend!) ──
     let stripeChargeId: string | undefined;

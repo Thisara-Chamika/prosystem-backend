@@ -16,6 +16,15 @@ export class ProductsService {
     shopId: string,
     userId: string,
   ) {
+    // Validate product price
+    if (!input.price || input.price <= 0) {
+    throw new Error(
+      'Product price must be greater than 0! ' +
+      'If this product uses variants, set the base price here — ' +
+      'variant options can add or subtract from it, but the base ' +
+      'price itself cannot be zero.'
+    );
+  }
     // Check if SKU already exists in this shop
     const existingProduct = await productsRepository.getProductBySku(
       input.sku,

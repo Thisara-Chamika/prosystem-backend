@@ -11,6 +11,7 @@ import { shops } from "./shops";
 import { users } from "./users";
 import { customers } from "./customers";
 import { products } from "./products";
+import { productVariants } from "./product-variants";
 
 // Transaction status enum
 export const transactionStatusEnum = pgEnum("transaction_status", [
@@ -112,6 +113,8 @@ export const transactionItems = pgTable("transaction_items", {
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
 
   discount: decimal("discount", { precision: 10, scale: 2 }).default("0"),
+
+  variantId: uuid("variant_id").references(() => productVariants.variantId),
 
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
 

@@ -12,6 +12,7 @@ export interface TransactionItemInput {
   productId: string;
   quantity: number;
   discount?: number;
+  variantId?: string;
 }
 
 export interface TransactionFilters {

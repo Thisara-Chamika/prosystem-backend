@@ -10,6 +10,7 @@ import {
 import { TransactionFilters } from "./pos.types";
 import { returns, returnItems } from "../../db/schema/returns";
 import { customers } from "../../db/schema/customers";
+import { productVariants } from "../../db/schema/product-variants";
 
 export class PosRepository {
   // Generate transaction number
@@ -369,17 +370,34 @@ export class PosRepository {
   }
 
   async getCustomerById(customerId: string, shopId: string) {
-  const result = await db
-    .select()
-    .from(customers)
-    .where(
-      and(
-        eq(customers.customerId, customerId),
-        eq(customers.shopId, shopId)
+    const result = await db
+      .select()
+      .from(customers)
+      .where(
+        and(eq(customers.customerId, customerId), eq(customers.shopId, shopId)),
       )
-    )
-    .limit(1);
+      .limit(1);
 
-  return result[0] ?? null;
-}
+    return result[0] ?? null;
+  }
+
+  // Get variant price adjustment (if a variant is selected)
+  async getVariantPriceAdjustment(variantId: string, shopId: string) {
+    const result = await db
+      .select({
+        priceAdjustment: productVariants.priceAdjustment,
+        quantity: productVariants.quantity,
+      })
+      .from(productVariants)
+      .where(
+        and(
+          eq(productVariants.variantId, variantId),
+          eq(productVariants.shopId, shopId),
+          eq(productVariants.isActive, true),
+        ),
+      )
+      .limit(1);
+
+    return result[0] ?? null;
+  }
 }
