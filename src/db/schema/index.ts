@@ -11,3 +11,4 @@ export * from './plugin-configurations';
 export * from './product-variants';
 export * from './loyalty-settings';
 export * from './loyalty-transactions';
+export * from './password-reset-tokens';
