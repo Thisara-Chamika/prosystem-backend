@@ -1,8 +1,8 @@
-import nodemailer from 'nodemailer';
+import nodemailer from "nodemailer";
 
 // ── Gmail SMTP Transporter ────────────────────────
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  service: "gmail",
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_APP_PASSWORD,
@@ -52,8 +52,18 @@ interface StaffWelcomeData {
   loginEmail: string;
 }
 
-export class EmailService {
+interface PasswordResetEmailData {
+  to: string;
+  firstName: string;
+  resetLink: string;
+}
 
+interface PasswordResetConfirmationData {
+  to: string;
+  firstName: string;
+}
+
+export class EmailService {
   // ── 1. RECEIPT EMAIL ──────────────────────────────
   async sendReceiptEmail(data: ReceiptEmailData) {
     await transporter.sendMail({
@@ -104,17 +114,43 @@ export class EmailService {
     });
   }
 
+  // ── 6. PASSWORD RESET ─────────────────────────────
+  async sendPasswordResetEmail(data: PasswordResetEmailData) {
+    await transporter.sendMail({
+      from: FROM_EMAIL,
+      to: data.to,
+      subject: "Reset your ProSystem password",
+      html: this.buildPasswordResetTemplate(data),
+    });
+  }
+
+  // ── 7. PASSWORD RESET CONFIRMATION ────────────────
+  async sendPasswordResetConfirmationEmail(
+    data: PasswordResetConfirmationData,
+  ) {
+    await transporter.sendMail({
+      from: FROM_EMAIL,
+      to: data.to,
+      subject: "Your ProSystem password was changed",
+      html: this.buildPasswordResetConfirmationTemplate(data),
+    });
+  }
+
   // ══════════════════════════════════════════════════
   // TEMPLATE BUILDERS
   // ══════════════════════════════════════════════════
 
   private buildReceiptTemplate(data: ReceiptEmailData): string {
-    const itemRows = data.items.map(item => `
+    const itemRows = data.items
+      .map(
+        (item) => `
       <tr>
         <td style="padding: 8px 0; color: #333;">${item.name} x${item.quantity}</td>
         <td style="padding: 8px 0; text-align: right; color: #333;">${data.currency} ${item.total.toFixed(2)}</td>
       </tr>
-    `).join('');
+    `,
+      )
+      .join("");
 
     return `
       <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #ffffff;">
@@ -148,13 +184,17 @@ export class EmailService {
   }
 
   private buildLowStockTemplate(data: LowStockAlertData): string {
-    const itemRows = data.items.map(item => `
+    const itemRows = data.items
+      .map(
+        (item) => `
       <tr>
         <td style="padding: 8px 0; color: #333;">${item.name}</td>
         <td style="padding: 8px 0; text-align: center; color: #d32f2f;">${item.quantity}</td>
         <td style="padding: 8px 0; text-align: center; color: #666;">${item.reorderPoint}</td>
       </tr>
-    `).join('');
+    `,
+      )
+      .join("");
 
     return `
       <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #ffffff;">
@@ -214,6 +254,46 @@ export class EmailService {
         <p style="color: #999; font-size: 12px; margin-top: 24px;">Powered by ProSystem</p>
       </div>
     `;
+  }
+
+  private buildPasswordResetTemplate(data: PasswordResetEmailData): string {
+    return `
+    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #ffffff;">
+      <h2 style="color: #1a1a1a;">Reset your password</h2>
+      <p style="color: #333;">Hi ${data.firstName},</p>
+      <p style="color: #333;">We received a request to reset your ProSystem password. Click the button below to choose a new one:</p>
+
+      <table style="margin: 24px 0;">
+        <tr>
+          <td style="background: #1D9E75; border-radius: 4px;">
+            <a href="${data.resetLink}" style="display: inline-block; padding: 12px 24px; color: #ffffff; text-decoration: none; font-weight: bold;">
+              Reset Password
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <p style="color: #666; font-size: 13px;">This link will expire in 30 minutes. If you didn't request this, you can safely ignore this email — your password will not be changed.</p>
+
+      <p style="color: #999; font-size: 12px; margin-top: 24px;">Powered by ProSystem</p>
+    </div>
+  `;
+  }
+
+  private buildPasswordResetConfirmationTemplate(
+    data: PasswordResetConfirmationData,
+  ): string {
+    return `
+    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background: #ffffff;">
+      <h2 style="color: #1a1a1a;">Your password was changed</h2>
+      <p style="color: #333;">Hi ${data.firstName},</p>
+      <p style="color: #333;">This is a confirmation that your ProSystem account password was successfully changed.</p>
+      <p style="color: #666; background: #f5f5f5; padding: 12px; border-radius: 4px;">
+        🔒 If you did not make this change, please contact your shop owner or ProSystem support immediately.
+      </p>
+      <p style="color: #999; font-size: 12px; margin-top: 24px;">Powered by ProSystem</p>
+    </div>
+  `;
   }
 }
 
