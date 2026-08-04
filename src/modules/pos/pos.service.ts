@@ -6,6 +6,7 @@ import { loyaltyService } from "../loyalty/loyalty.service";
 import { emailService } from "../../services/EmailService";
 import { ShopsRepository } from "../shops/shops.repository";
 import { checkAndSendLowStockAlerts } from "../../utils/low-stock-alert.utils";
+import { paymentsService } from "../payments/payments.service";
 
 const posRepository = new PosRepository();
 const productsRepository = new ProductsRepository();
@@ -51,9 +52,27 @@ export class PosService {
       }
 
       // Calculate item total
-      const unitPrice = parseFloat(product.price);
-      const itemDiscount = item.discount ?? 0;
-      const itemSubtotal = unitPrice * item.quantity - itemDiscount;
+      // Calculate item total — base price + variant adjustment if applicable
+  let unitPrice = parseFloat(product.price);
+
+  if (item.variantId) {
+    const variant = await posRepository.getVariantPriceAdjustment(
+      item.variantId,
+      shopId
+    );
+
+    if (!variant) {
+      throw new Error(
+        `Selected variant not found for ${product.name}!`
+      );
+    }
+
+    const priceAdjustment = parseFloat(variant.priceAdjustment ?? '0');
+    unitPrice += priceAdjustment;
+  }
+
+  const itemDiscount = item.discount ?? 0;
+  const itemSubtotal = unitPrice * item.quantity - itemDiscount;
 
       // ── Calculate tax per product ──────────────────
       const productTaxRate = parseFloat(product.taxRate ?? "0") / 100;
@@ -73,6 +92,7 @@ export class PosService {
         total: String(itemSubtotal),
         transactionId: "",
         productType: product.productType,
+        variantId: item.variantId ?? null,
       });
     }
 
@@ -80,6 +100,53 @@ export class PosService {
     const discount = input.discount ?? 0;
     const tax = totalTax;
     const total = subtotal - discount + tax;
+
+    if (total < 0) {
+      throw new Error(
+        `Calculated transaction total is negative (${total.toFixed(2)}). ` +
+        `Check the discount value — subtotal: ${subtotal.toFixed(2)}, ` +
+        `tax: ${tax.toFixed(2)}, discount: ${discount.toFixed(2)}.`
+      );
+    }
+
+    // ── Verify card payment with Stripe (never trust the frontend!) ──
+    let stripeChargeId: string | undefined;
+
+    if (input.paymentMethod === "card") {
+      if (!input.stripePaymentIntentId) {
+        throw new Error("stripePaymentIntentId is required for card payments!");
+      }
+
+      const intent = await paymentsService.retrievePaymentIntent(
+        input.stripePaymentIntentId
+      );
+
+      if (intent.status !== "succeeded") {
+        throw new Error("Payment not confirmed. Cannot complete sale.");
+      }
+
+      const expectedAmountInCents = Math.round(total * 100);
+      const toleranceCents = 1; // ±1 cent, absorbs floating-point rounding only
+      const difference = Math.abs(intent.amount - expectedAmountInCents);
+
+      if (difference > toleranceCents) {
+        // Genuine mismatch beyond rounding tolerance — refund immediately
+        // so the customer is never left charged with no transaction record.
+        await paymentsService.refundPaymentIntent(input.stripePaymentIntentId);
+
+        throw new Error(
+          `Payment amount mismatch (charged: ${intent.amount}, expected: ${expectedAmountInCents}). ` +
+          `The charge has been automatically refunded.`
+        );
+      }
+
+      // Extract the charge id for storage — Stripe's newer API versions
+      // nest this under latest_charge rather than a top-level charges list.
+      stripeChargeId = typeof intent.latest_charge === "string"
+        ? intent.latest_charge
+        : intent.latest_charge?.id;
+    }
+    // ──────────────────────────────────────────────────────────────
 
     // ── beforeCheckout hook ───────────────────────────
     await pluginEngine.runHook("beforeCheckout", {
@@ -112,6 +179,8 @@ export class PosService {
         paymentStatus: "paid",
         status: "completed",
         notes: input.notes,
+        stripePaymentIntentId: input.stripePaymentIntentId ?? null,
+        stripeChargeId: stripeChargeId ?? null,
         createdBy: userId,
         updatedBy: userId,
       },
@@ -139,7 +208,6 @@ export class PosService {
       console.error("Low stock alert error:", err);
     });
 
-    // ── Earn loyalty points if customer attached ──────
     // ── Loyalty & CRM (after transaction saved) ───────
     if (input.customerId) {
       try {

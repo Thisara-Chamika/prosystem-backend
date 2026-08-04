@@ -2,6 +2,7 @@ import { ReturnsRepository } from './returns.repository';
 import { CreateReturnInput } from './returns.types';
 import { createAuditLog } from '../../utils/audit.utils';
 import { AuditAction } from '../../enums/audit-actions.enum';
+import { paymentsService } from '../payments/payments.service';
 
 const returnsRepository = new ReturnsRepository();
 
@@ -87,6 +88,30 @@ export class ReturnsService {
       });
     }
 
+    // ── Process Stripe refund BEFORE any other side effects ──
+    let stripeRefundId: string | undefined;
+
+    if (
+      transaction.paymentMethod === 'card' &&
+      input.refundMethod === 'card' &&
+      transaction.stripePaymentIntentId
+    ) {
+      try {
+        const refund = await paymentsService.refundPaymentIntent(
+          transaction.stripePaymentIntentId,
+          Math.round(totalRefund * 100)
+        );
+        stripeRefundId = refund.id;
+      } catch (error: any) {
+        throw new Error(
+          `Stripe refund failed: ${error.message}. ` +
+          `Return has NOT been processed — no inventory or ` +
+          `transaction changes were made.`
+        );
+      }
+    }
+    // ──────────────────────────────────────────────────────
+
     // 6. Restore inventory
     for (const item of input.items) {
       await returnsRepository.restoreInventory(
@@ -106,6 +131,7 @@ export class ReturnsService {
         reason: input.reason,
         refundMethod: input.refundMethod,
         totalRefund: String(totalRefund.toFixed(2)),
+        stripeRefundId: stripeRefundId ?? null,
         status: 'completed',
       },
       itemsToReturn
@@ -132,7 +158,6 @@ export class ReturnsService {
     );
 
     // 9. Audit logs ─────────────────────────────────
-    // Log return initiated by cashier/manager
     await createAuditLog({
       shopId,
       userId,
@@ -145,10 +170,10 @@ export class ReturnsService {
         refundMethod: input.refundMethod,
         itemCount: input.items.length,
         initiatedByRole: userRole,
+        stripeRefundId: stripeRefundId ?? null,
       },
     });
 
-    // Log manager approval if applicable
     if (input.approvedBy) {
       await createAuditLog({
         shopId,
@@ -170,6 +195,7 @@ export class ReturnsService {
       totalRefund: totalRefund.toFixed(2),
       refundMethod: input.refundMethod,
       approvedBy: input.approvedBy ?? null,
+      stripeRefundId: stripeRefundId ?? null,
     };
   }
 }
