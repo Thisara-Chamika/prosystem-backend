@@ -9,6 +9,8 @@ import {
 } from "./auth.types";
 import { createAuditLog } from "../../utils/audit.utils";
 import { AuditAction } from "../../enums/audit-actions.enum";
+import crypto from "crypto";
+import { emailService } from "../../services/EmailService";
 
 const authRepository = new AuthRepository();
 const SALT_ROUNDS = 10;
@@ -276,5 +278,127 @@ export class AuthService {
     await authRepository.updatePassword(userId, newHash);
 
     return { message: "Password changed successfully!" };
+  }
+
+  // ── FORGOT PASSWORD ────────────────────────────────
+  async forgotPassword(email: string) {
+    const user = await authRepository.findUserByEmail(email);
+
+    // Always return the same generic response, regardless of
+    // whether the email exists — prevents account enumeration.
+    const genericResponse = {
+      message:
+        "If an account with that email exists, a password reset link has been sent.",
+    };
+
+    if (!user) {
+      return genericResponse;
+    }
+
+    // Generate a cryptographically random raw token — this is
+    // what gets emailed, never stored directly.
+    const rawToken = crypto.randomBytes(32).toString("hex");
+
+    // Hash it with SHA-256 before storing — fast hash is fine
+    // here since the token itself has 256 bits of entropy,
+    // unlike a human password (which is why bcrypt is used
+    // for passwords but not needed here).
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(rawToken)
+      .digest("hex");
+
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+    await authRepository.createResetToken(user.userId, tokenHash, expiresAt);
+
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}`;
+
+    await emailService
+      .sendPasswordResetEmail({
+        to: user.email,
+        firstName: user.firstName,
+        resetLink,
+      })
+      .catch((err) => {
+        // Never let email failure break the response — same
+        // pattern as every other transactional email in this app.
+        console.error("Failed to send password reset email:", err);
+      });
+
+    await createAuditLog({
+      shopId: user.shopId ?? null,
+      userId: user.userId,
+      action: AuditAction.PASSWORD_RESET_REQUESTED,
+      entityType: "user",
+      entityId: user.userId,
+      details: { email: user.email },
+    });
+
+    return genericResponse;
+  }
+
+  // ── RESET PASSWORD ─────────────────────────────────
+  async resetPassword(rawToken: string, newPassword: string) {
+    if (newPassword.length < 8) {
+      throw new Error("New password must be at least 8 characters!");
+    }
+
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(rawToken)
+      .digest("hex");
+
+    const resetRecord = await authRepository.findValidResetToken(tokenHash);
+
+    if (!resetRecord) {
+      throw new Error(
+        "Invalid or expired reset link. Please request a new one.",
+      );
+    }
+
+    if (resetRecord.expiresAt < new Date()) {
+      throw new Error(
+        "Invalid or expired reset link. Please request a new one.",
+      );
+    }
+
+    const user = await authRepository.getUserWithPassword(resetRecord.userId);
+    if (!user) {
+      throw new Error(
+        "Invalid or expired reset link. Please request a new one.",
+      );
+    }
+
+    const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await authRepository.updatePassword(user.userId, newHash);
+
+    // Mark token used immediately after the password is actually
+    // updated — not before — so a failure mid-update doesn't
+    // burn a valid token the user never actually got to use.
+    await authRepository.markResetTokenUsed(resetRecord.resetTokenId);
+
+    await emailService
+      .sendPasswordResetConfirmationEmail({
+        to: user.email,
+        firstName: user.firstName,
+      })
+      .catch((err) => {
+        console.error("Failed to send password reset confirmation email:", err);
+      });
+
+    await createAuditLog({
+      shopId: user.shopId ?? null,
+      userId: user.userId,
+      action: AuditAction.PASSWORD_RESET_COMPLETED,
+      entityType: "user",
+      entityId: user.userId,
+      details: {},
+    });
+
+    return {
+      message:
+        "Password reset successfully! You can now log in with your new password.",
+    };
   }
 }

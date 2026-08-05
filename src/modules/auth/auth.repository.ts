@@ -4,6 +4,7 @@ import { users } from "../../db/schema/users";
 import { eq, and } from "drizzle-orm";
 import { NewShop } from "../../db/schema/shops";
 import { NewUser } from "../../db/schema/users";
+import { passwordResetTokens } from "../../db/schema/password-reset-tokens";
 
 export class AuthRepository {
   // Find user by email
@@ -165,5 +166,44 @@ export class AuthRepository {
       .limit(1);
 
     return result[0] ?? null;
+  }
+
+  // Create a password reset token record
+  async createResetToken(userId: string, tokenHash: string, expiresAt: Date) {
+    const result = await db
+      .insert(passwordResetTokens)
+      .values({
+        userId,
+        tokenHash,
+        expiresAt,
+        used: false,
+      })
+      .returning();
+
+    return result[0];
+  }
+
+  // Find a valid (unused, unexpired) reset token by its hash
+  async findValidResetToken(tokenHash: string) {
+    const result = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(
+        and(
+          eq(passwordResetTokens.tokenHash, tokenHash),
+          eq(passwordResetTokens.used, false),
+        ),
+      )
+      .limit(1);
+
+    return result[0] ?? null;
+  }
+
+  // Mark a reset token as used (single-use enforcement)
+  async markResetTokenUsed(resetTokenId: string) {
+    await db
+      .update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.resetTokenId, resetTokenId));
   }
 }

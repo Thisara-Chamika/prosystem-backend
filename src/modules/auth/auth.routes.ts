@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AuthController } from './auth.controller';
 import { authenticate, authorize } from '../../middlewares/auth.middleware';
+import { forgotPasswordLimiter } from '../../middlewares/rate-limit.middleware';
 
 const router = Router();
 const authController = new AuthController();
@@ -58,6 +59,19 @@ router.put(
   authenticate,
   authorize('shop_owner', 'shop_manager'),
   authController.setManagerPin.bind(authController)
+);
+
+// Forgot password (public, rate limited)
+router.post(
+  '/forgot-password',
+  forgotPasswordLimiter,
+  authController.forgotPassword.bind(authController)
+);
+
+// Reset password (public, token-based)
+router.post(
+  '/reset-password',
+  authController.resetPassword.bind(authController)
 );
 
 export default router;
