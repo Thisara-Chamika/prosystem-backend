@@ -1,0 +1,2 @@
+ALTER TABLE restaurant_order_items
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true NOT NULL;
