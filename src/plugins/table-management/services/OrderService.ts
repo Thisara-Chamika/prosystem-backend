@@ -6,7 +6,7 @@ import {
 } from "../../../db/schema/table-management";
 import { products } from "../../../db/schema/products";
 import { inventory } from "../../../db/schema/inventory";
-import { eq, and, ne } from "drizzle-orm";
+import { eq, and, ne, sql } from "drizzle-orm";
 
 export class OrderService {
   async openOrder(
@@ -155,6 +155,13 @@ export class OrderService {
       })
       .returning();
 
+      if (product[0].trackInventory) {
+      await db
+        .update(inventory)
+        .set({ reserved: sql`${inventory.reserved} + ${data.quantity}` })
+        .where(and(eq(inventory.productId, data.productId), eq(inventory.shopId, shopId)));
+    }
+
     return result[0];
   }
 
@@ -184,6 +191,19 @@ export class OrderService {
       .update(restaurantOrderItems)
       .set({ isActive: false })
       .where(eq(restaurantOrderItems.orderItemId, orderItemId));
+
+      const product = await db
+      .select()
+      .from(products)
+      .where(eq(products.productId, item[0].productId))
+      .limit(1);
+
+    if (product[0]?.trackInventory) {
+      await db
+        .update(inventory)
+        .set({ reserved: sql`GREATEST(${inventory.reserved} - ${item[0].quantity}, 0)` })
+        .where(and(eq(inventory.productId, item[0].productId), eq(inventory.shopId, shopId)));
+    }
   }
 
   async sendToKitchen(shopId: string, orderId: string) {
