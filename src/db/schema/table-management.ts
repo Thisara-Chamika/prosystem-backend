@@ -12,6 +12,7 @@ export const restaurantTables = pgTable('restaurant_tables', {
   tableNumber: integer('table_number').notNull(),
   capacity: integer('capacity').default(4),
   status: varchar('status', { length: 20 }).default('available').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });
@@ -50,7 +51,6 @@ export const restaurantOrderItems = pgTable('restaurant_order_items', {
   unitPrice: decimal('unit_price', { precision: 10, scale: 2 }).notNull(),
   specialRequests: text('special_requests'),
   kitchenStatus: varchar('kitchen_status', { length: 20 }).default('pending').notNull(),
-  isActive: boolean('is_active').default(true).notNull(),
   addedAt: timestamp('added_at', { mode: 'date' }).defaultNow().notNull(),
 });
 
