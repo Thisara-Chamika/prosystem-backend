@@ -92,6 +92,7 @@ export class PosService {
         total: String(itemSubtotal),
         transactionId: "",
         productType: product.productType,
+        trackInventory: product.trackInventory,
         variantId: item.variantId ?? null,
       });
     }
