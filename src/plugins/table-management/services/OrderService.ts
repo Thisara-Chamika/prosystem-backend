@@ -317,10 +317,12 @@ export class OrderService {
     const result = await posService.createTransaction(
       {
         customerId: order[0].customerId ?? undefined,
-        items: items.map((i) => ({
-          productId: i.productId,
-          quantity: i.quantity,
-        })),
+        items: Array.from(
+          items.reduce((map, i) => {
+            map.set(i.productId, (map.get(i.productId) ?? 0) + i.quantity);
+            return map;
+          }, new Map<string, number>()),
+        ).map(([productId, quantity]) => ({ productId, quantity })),
         paymentMethod: data.paymentMethod,
         discount: data.discount,
         stripePaymentIntentId: data.stripePaymentIntentId,
