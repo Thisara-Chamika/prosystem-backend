@@ -78,6 +78,19 @@ export class OrderController {
       res.status(400).json({ success: false, message: error.message });
     }
   }
+
+  async checkout(req: Request, res: Response): Promise<void> {
+    try {
+      const { orderId } = req.params;
+      const shopId = req.user!.shopId!;
+      const userId = req.user!.userId;
+      const role = req.user!.role;
+      const result = await orderService.checkoutOrder(shopId, orderId, userId, role, req.body);
+      res.status(201).json({ success: true, message: 'Order checked out successfully!', data: result });
+    } catch (error: any) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
 }
 
 export const orderController = new OrderController();

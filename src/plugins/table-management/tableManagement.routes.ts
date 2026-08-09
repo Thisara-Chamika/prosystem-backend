@@ -60,4 +60,10 @@ router.patch(
   orderController.sendToKitchen.bind(orderController),
 );
 
+router.post(
+  '/orders/:orderId/checkout',
+  authorize('shop_owner', 'shop_manager', 'cashier'),
+  orderController.checkout.bind(orderController)
+);
+
 export default router;

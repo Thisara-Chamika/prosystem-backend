@@ -6,7 +6,10 @@ import {
 } from "../../../db/schema/table-management";
 import { products } from "../../../db/schema/products";
 import { inventory } from "../../../db/schema/inventory";
-import { eq, and, ne, sql } from "drizzle-orm";
+import { eq, and, ne, sql, inArray } from "drizzle-orm";
+import { PosService } from "../../../modules/pos/pos.service";
+
+const posService = new PosService();
 
 export class OrderService {
   async openOrder(
@@ -155,11 +158,16 @@ export class OrderService {
       })
       .returning();
 
-      if (product[0].trackInventory) {
+    if (product[0].trackInventory) {
       await db
         .update(inventory)
         .set({ reserved: sql`${inventory.reserved} + ${data.quantity}` })
-        .where(and(eq(inventory.productId, data.productId), eq(inventory.shopId, shopId)));
+        .where(
+          and(
+            eq(inventory.productId, data.productId),
+            eq(inventory.shopId, shopId),
+          ),
+        );
     }
 
     return result[0];
@@ -192,7 +200,7 @@ export class OrderService {
       .set({ isActive: false })
       .where(eq(restaurantOrderItems.orderItemId, orderItemId));
 
-      const product = await db
+    const product = await db
       .select()
       .from(products)
       .where(eq(products.productId, item[0].productId))
@@ -201,8 +209,15 @@ export class OrderService {
     if (product[0]?.trackInventory) {
       await db
         .update(inventory)
-        .set({ reserved: sql`GREATEST(${inventory.reserved} - ${item[0].quantity}, 0)` })
-        .where(and(eq(inventory.productId, item[0].productId), eq(inventory.shopId, shopId)));
+        .set({
+          reserved: sql`GREATEST(${inventory.reserved} - ${item[0].quantity}, 0)`,
+        })
+        .where(
+          and(
+            eq(inventory.productId, item[0].productId),
+            eq(inventory.shopId, shopId),
+          ),
+        );
     }
   }
 
@@ -249,6 +264,117 @@ export class OrderService {
     }
 
     return { itemsSent: pendingItems.length };
+  }
+
+  async checkoutOrder(
+    shopId: string,
+    orderId: string,
+    userId: string,
+    role: string,
+    data: {
+      paymentMethod: "cash" | "card" | "online" | "mixed";
+      stripePaymentIntentId?: string;
+      discount?: number;
+      splitCount?: number;
+    },
+  ) {
+    const order = await db
+      .select()
+      .from(restaurantOrders)
+      .where(
+        and(
+          eq(restaurantOrders.orderId, orderId),
+          eq(restaurantOrders.shopId, shopId),
+        ),
+      )
+      .limit(1);
+
+    if (!order[0]) throw new Error("Order not found!");
+    if (order[0].status === "closed")
+      throw new Error("This order has already been checked out!");
+
+    const items = await db
+      .select()
+      .from(restaurantOrderItems)
+      .where(
+        and(
+          eq(restaurantOrderItems.orderId, orderId),
+          eq(restaurantOrderItems.isActive, true),
+        ),
+      );
+
+    if (items.length === 0)
+      throw new Error("Cannot checkout an order with no items!");
+
+    const productIds = [...new Set(items.map((i) => i.productId))];
+    const productRows = await db
+      .select()
+      .from(products)
+      .where(inArray(products.productId, productIds));
+    const productById = new Map(productRows.map((p) => [p.productId, p]));
+
+    // Reuse the real POS transaction logic — no duplicate checkout code
+    const result = await posService.createTransaction(
+      {
+        customerId: order[0].customerId ?? undefined,
+        items: items.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+        })),
+        paymentMethod: data.paymentMethod,
+        discount: data.discount,
+        stripePaymentIntentId: data.stripePaymentIntentId,
+        notes: `Table order ${orderId}`,
+      },
+      shopId,
+      userId,
+      role,
+    );
+
+    // Release the stock we reserved earlier — real POS checkout never touches `reserved`
+    for (const item of items) {
+      if (productById.get(item.productId)?.trackInventory) {
+        await db
+          .update(inventory)
+          .set({
+            reserved: sql`GREATEST(${inventory.reserved} - ${item.quantity}, 0)`,
+          })
+          .where(
+            and(
+              eq(inventory.productId, item.productId),
+              eq(inventory.shopId, shopId),
+            ),
+          );
+      }
+    }
+
+    await db
+      .update(restaurantOrders)
+      .set({
+        status: "closed",
+        transactionId: result.transaction.transactionId,
+        closedAt: new Date(),
+      })
+      .where(eq(restaurantOrders.orderId, orderId));
+
+    await db
+      .update(restaurantTables)
+      .set({ status: "needs_cleaning", updatedAt: new Date() })
+      .where(eq(restaurantTables.tableId, order[0].tableId));
+
+    const response: any = {
+      transaction: result.transaction,
+      items: result.items,
+    };
+
+    if (data.splitCount && data.splitCount > 1) {
+      response.splitCount = data.splitCount;
+      response.amountPerPerson = (
+        parseFloat(result.transaction.total) / data.splitCount
+      ).toFixed(2);
+    }
+
+    return response;
   }
 }
 

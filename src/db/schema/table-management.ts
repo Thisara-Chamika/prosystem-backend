@@ -12,6 +12,7 @@ import { shops } from "./shops";
 import { users } from "./users";
 import { customers } from "./customers";
 import { products } from "./products";
+import { transactions } from './transactions';
 
 export const restaurantTables = pgTable("restaurant_tables", {
   tableId: uuid("table_id").primaryKey().defaultRandom(),
@@ -41,6 +42,7 @@ export const restaurantOrders = pgTable("restaurant_orders", {
   customerId: uuid("customer_id").references(() => customers.customerId),
   notes: text("notes"),
   openedAt: timestamp("opened_at", { mode: "date" }).defaultNow().notNull(),
+  transactionId: uuid('transaction_id').references(() => transactions.transactionId),
   closedAt: timestamp("closed_at", { mode: "date" }),
 });
 
