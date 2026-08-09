@@ -89,7 +89,21 @@ export class OrderService {
         ),
       );
 
-    return { ...order[0], items };
+    if (items.length === 0) return { ...order[0], items: [] };
+
+    const productIds = [...new Set(items.map((i) => i.productId))];
+    const productRows = await db
+      .select()
+      .from(products)
+      .where(inArray(products.productId, productIds));
+    const productById = new Map(productRows.map((p) => [p.productId, p]));
+
+    const enrichedItems = items.map((item) => ({
+      ...item,
+      productName: productById.get(item.productId)?.name ?? "Unknown item",
+    }));
+
+    return { ...order[0], items: enrichedItems };
   }
 
   async addItem(
