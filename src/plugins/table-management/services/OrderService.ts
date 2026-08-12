@@ -98,9 +98,10 @@ export class OrderService {
       .where(inArray(products.productId, productIds));
     const productById = new Map(productRows.map((p) => [p.productId, p]));
 
-    const enrichedItems = items.map((item) => ({
+    const enrichedItems = items.map(item => ({
       ...item,
-      productName: productById.get(item.productId)?.name ?? "Unknown item",
+      productName: productById.get(item.productId)?.name ?? 'Unknown item',
+      taxRate: productById.get(item.productId)?.taxRate ?? '0',
     }));
 
     return { ...order[0], items: enrichedItems };
