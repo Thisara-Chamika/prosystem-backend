@@ -266,7 +266,7 @@ export class OrderService {
     for (const item of pendingItems) {
       await db
         .update(restaurantOrderItems)
-        .set({ kitchenStatus: "preparing" })
+        .set({ kitchenStatus: 'preparing', sentToKitchenAt: new Date() })
         .where(eq(restaurantOrderItems.orderItemId, item.orderItemId));
     }
 

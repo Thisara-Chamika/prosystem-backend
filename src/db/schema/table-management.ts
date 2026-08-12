@@ -60,10 +60,9 @@ export const restaurantOrderItems = pgTable("restaurant_order_items", {
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
   specialRequests: text("special_requests"),
-  kitchenStatus: varchar("kitchen_status", { length: 20 })
-    .default("pending")
-    .notNull(),
-  isActive: boolean("is_active").default(true).notNull(),
+  kitchenStatus: varchar('kitchen_status', { length: 20 }).default('pending').notNull(),
+  sentToKitchenAt: timestamp('sent_to_kitchen_at', { mode: 'date' }),
+  isActive: boolean('is_active').default(true).notNull(),
   addedAt: timestamp("added_at", { mode: "date" }).defaultNow().notNull(),
 });
 

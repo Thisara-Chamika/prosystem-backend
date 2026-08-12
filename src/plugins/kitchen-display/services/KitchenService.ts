@@ -58,6 +58,7 @@ export class KitchenService {
         specialRequests: item.specialRequests,
         kitchenStatus: item.kitchenStatus,
         addedAt: item.addedAt,
+        sentToKitchenAt: item.sentToKitchenAt,
       });
       grouped.set(item.orderId, list);
     }
@@ -67,18 +68,24 @@ export class KitchenService {
         const order = orderById.get(orderId);
         if (!order) return null;
         const table = tableById.get(order.tableId);
+        const oldestSentAt = orderItems.reduce((oldest: Date | null, i: any) => {
+          if (!i.sentToKitchenAt) return oldest;
+          const t = new Date(i.sentToKitchenAt);
+          return !oldest || t < oldest ? t : oldest;
+        }, null as Date | null);
         return {
           orderId,
           tableNumber: table?.tableNumber ?? null,
-          openedAt: order.openedAt,
+          oldestSentAt,
           items: orderItems,
         };
       })
       .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
-      .sort(
-        (a, b) =>
-          new Date(a.openedAt).getTime() - new Date(b.openedAt).getTime(),
-      );
+      .sort((a, b) => {
+        if (!a.oldestSentAt) return 1;
+        if (!b.oldestSentAt) return -1;
+        return new Date(a.oldestSentAt).getTime() - new Date(b.oldestSentAt).getTime();
+      });
   }
 
   async updateItemStatus(
