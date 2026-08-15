@@ -76,7 +76,7 @@ export class PosRepository {
     // 3. Update inventory for each item
     for (const item of items) {
       // Skip inventory deduction for services!
-      if ((item as any).productType === "service") {
+      if ((item as any).productType === "service" || (item as any).trackInventory === false) {
         continue;
       }
 
