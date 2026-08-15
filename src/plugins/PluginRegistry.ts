@@ -168,7 +168,7 @@ export const AVAILABLE_PLUGINS: AvailablePlugin[] = [
     name: "Card Payments",
     version: "1.0.0",
     description:
-      "Accept card payments at checkout via a physical terminal.",
+      "Accept card payments at checkout via Stripe.",
     category: "generic",
     icon: "💳",
     features: ["Card payment method at POS"],
@@ -179,7 +179,7 @@ export const AVAILABLE_PLUGINS: AvailablePlugin[] = [
       name: "Card Payments",
       version: "1.0.0",
       description:
-        "Accept card payments at checkout via a physical terminal.",
+        "Accept card payments at checkout via Stripe.",
       category: "retail",
       icon: "💳",
       hooks: {},
