@@ -2,12 +2,14 @@ import { Router } from 'express';
 import { ProductsController } from './products.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { authorize } from '../../middlewares/auth.middleware';
+import { setRlsContext } from '../../middlewares/rls.middleware';
 
 const router = Router();
 const productsController = new ProductsController();
 
-// All product routes require authentication
+// Middleware to authenticate and set RLS context for all product routes
 router.use(authenticate);
+router.use(setRlsContext);
 
 // ── PRODUCT ROUTES ────────────────────────────────
 // Get all products (everyone can view)

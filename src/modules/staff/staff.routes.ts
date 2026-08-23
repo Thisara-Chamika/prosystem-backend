@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import { StaffController } from './staff.controller';
 import { authenticate, authorize } from '../../middlewares/auth.middleware';
+import { setRlsContext } from '../../middlewares/rls.middleware';
 
 const router = Router();
 const staffController = new StaffController();
 
-// All routes require authentication
+// Middleware to authenticate and set RLS context for all staff routes
 router.use(authenticate);
+router.use(setRlsContext);
 
 // ── GET routes ────────────────────────────────────
 // Get all staff (owner + manager can view)

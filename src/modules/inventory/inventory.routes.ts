@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import { InventoryController } from './inventory.controller';
 import { authenticate, authorize } from '../../middlewares/auth.middleware';
+import { setRlsContext } from '../../middlewares/rls.middleware';
 
 const router = Router();
 const inventoryController = new InventoryController();
 
+// Middleware to authenticate and set RLS context for all inventory routes
 router.use(authenticate);
+router.use(setRlsContext);
 
 // GET /api/inventory/low-stock
 router.get(

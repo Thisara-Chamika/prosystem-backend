@@ -2,11 +2,13 @@ import { Router } from 'express';
 import { variantController } from './controllers/VariantController';
 import { authenticate, authorize } from '../../middlewares/auth.middleware';
 import { requirePlugin } from '../../middlewares/plugin.middleware';
+import { setRlsContext } from '../../middlewares/rls.middleware';
 
 const router = Router();
 
-// All routes need auth + fashion plugin active!
+// Middleware to authenticate, set RLS context, and require the product-variants plugin for all variant routes
 router.use(authenticate);
+router.use(setRlsContext);
 router.use(requirePlugin('product-variants'));
 
 // ── GET routes ────────────────────────────────────
