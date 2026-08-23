@@ -139,7 +139,7 @@ export class AuthService {
 
     let businessType: string | undefined;
     if (user.shopId) {
-      const shop = await authRepository.getShopById(user.shopId);
+      const shop = await authRepository.getShopByIdForLogin(user.shopId);
       businessType = shop?.businessType;
     }
 

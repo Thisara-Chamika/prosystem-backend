@@ -1,4 +1,5 @@
 import { db } from "../../config/database";
+import { dbBypass } from "../../config/database-bypass";
 import { shops } from "../../db/schema/shops";
 import { users } from "../../db/schema/users";
 import { eq, and } from "drizzle-orm";
@@ -9,7 +10,7 @@ import { passwordResetTokens } from "../../db/schema/password-reset-tokens";
 export class AuthRepository {
   // Find user by email
   async findUserByEmail(email: string) {
-    const result = await db
+    const result = await dbBypass
       .select()
       .from(users)
       .where(eq(users.email, email))
@@ -44,10 +45,10 @@ export class AuthRepository {
   // Create shop and owner together
   async createShopWithOwner(shopData: NewShop, userData: NewUser) {
     // Create shop first
-    const newShop = await db.insert(shops).values(shopData).returning();
+    const newShop = await dbBypass.insert(shops).values(shopData).returning();
 
     // Then create owner with shopId
-    const newUser = await db
+    const newUser = await dbBypass
       .insert(users)
       .values({
         ...userData,
@@ -160,6 +161,16 @@ export class AuthRepository {
 
   async getShopById(shopId: string) {
     const result = await db
+      .select()
+      .from(shops)
+      .where(eq(shops.shopId, shopId))
+      .limit(1);
+
+    return result[0] ?? null;
+  }
+
+  async getShopByIdForLogin(shopId: string) {
+    const result = await dbBypass
       .select()
       .from(shops)
       .where(eq(shops.shopId, shopId))
