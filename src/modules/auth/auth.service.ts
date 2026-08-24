@@ -85,7 +85,7 @@ export class AuthService {
       throw new Error("Invalid email or password");
     }
     // 3. Update lastLogin
-    await authRepository.updateLastLogin(user.userId);
+    await authRepository.updateLastLoginBypass(user.userId);
 
     // Audit log
     await createAuditLog({
@@ -98,6 +98,7 @@ export class AuthService {
         email: user.email,
         role: user.role,
       },
+      useBypass: true,
     });
 
     // Fetch shop for businessType
@@ -333,6 +334,7 @@ export class AuthService {
       entityType: "user",
       entityId: user.userId,
       details: { email: user.email },
+      useBypass: true,
     });
 
     return genericResponse;
@@ -394,6 +396,7 @@ export class AuthService {
       entityType: "user",
       entityId: user.userId,
       details: {},
+      useBypass: true,
     });
 
     return {

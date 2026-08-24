@@ -74,6 +74,14 @@ export class AuthRepository {
       .where(eq(users.userId, userId));
   }
 
+  // Update last login timestamp using bypass database (for login bypass scenarios)
+   async updateLastLoginBypass(userId: string) {
+    await dbBypass
+      .update(users)
+      .set({ lastLogin: new Date(), updatedAt: new Date() })
+      .where(eq(users.userId, userId));
+  }
+
   // Set manager PIN
   async setManagerPin(userId: string, pinHash: string) {
     await db
