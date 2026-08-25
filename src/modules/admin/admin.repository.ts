@@ -3,9 +3,14 @@ import { shops } from "../../db/schema/shops";
 import { users } from "../../db/schema/users";
 import { customers } from "../../db/schema/customers";
 import { transactions } from "../../db/schema/transactions";
-import { count, ne, ilike, or, and, eq, inArray, desc } from "drizzle-orm";
+import {
+  supportTickets,
+  supportTicketMessages,
+} from "../../db/schema/support-tickets";
+import { count, ne, ilike, or, and, eq, inArray, desc, asc } from "drizzle-orm";
 
 export class AdminRepository {
+  // Get metrics for the admin dashboard
   async getMetrics() {
     const [shopsCount] = await db.select({ count: count() }).from(shops);
     const [usersCount] = await db
@@ -27,6 +32,7 @@ export class AdminRepository {
     };
   }
 
+  // Get a paginated list of shops with optional search filters
   async getShops(filters: { search?: string; page?: number; limit?: number }) {
     const limit = filters.limit ?? 20;
     const offset = ((filters.page ?? 1) - 1) * limit;
@@ -84,11 +90,105 @@ export class AdminRepository {
     return { data, total };
   }
 
+  // Update the status of a shop (activate/deactivate)
   async updateShopStatus(shopId: string, isActive: boolean) {
     const result = await db
       .update(shops)
       .set({ isActive, updatedAt: new Date() })
       .where(eq(shops.shopId, shopId))
+      .returning();
+
+    return result[0] ?? null;
+  }
+
+  // Get support tickets with optional status filter
+  async getSupportTickets(status?: string) {
+    const whereClause = status ? eq(supportTickets.status, status) : undefined;
+
+    return await db
+      .select({
+        ticketId: supportTickets.ticketId,
+        shopId: supportTickets.shopId,
+        shopName: shops.name,
+        raisedBy: supportTickets.raisedBy,
+        subject: supportTickets.subject,
+        status: supportTickets.status,
+        createdAt: supportTickets.createdAt,
+        updatedAt: supportTickets.updatedAt,
+      })
+      .from(supportTickets)
+      .leftJoin(shops, eq(shops.shopId, supportTickets.shopId))
+      .where(whereClause)
+      .orderBy(desc(supportTickets.updatedAt));
+  }
+
+  // Get a support ticket by its ID, including its messages
+  async getSupportTicketById(ticketId: string) {
+    const ticket = await db
+      .select({
+        ticketId: supportTickets.ticketId,
+        shopId: supportTickets.shopId,
+        shopName: shops.name,
+        raisedBy: supportTickets.raisedBy,
+        subject: supportTickets.subject,
+        status: supportTickets.status,
+        createdAt: supportTickets.createdAt,
+        updatedAt: supportTickets.updatedAt,
+      })
+      .from(supportTickets)
+      .leftJoin(shops, eq(shops.shopId, supportTickets.shopId))
+      .where(eq(supportTickets.ticketId, ticketId))
+      .limit(1);
+
+    if (!ticket[0]) return null;
+
+    const messages = await db
+      .select()
+      .from(supportTicketMessages)
+      .where(eq(supportTicketMessages.ticketId, ticketId))
+      .orderBy(asc(supportTicketMessages.createdAt));
+
+    return { ...ticket[0], messages };
+  }
+
+  // Add a message to a support ticket as an admin
+  async addAdminMessage(
+    ticketId: string,
+    adminUserId: string,
+    message: string,
+  ) {
+    const ticket = await db
+      .select()
+      .from(supportTickets)
+      .where(eq(supportTickets.ticketId, ticketId))
+      .limit(1);
+    if (!ticket[0]) return null;
+
+    const newMessage = await db
+      .insert(supportTicketMessages)
+      .values({
+        ticketId,
+        shopId: ticket[0].shopId,
+        senderId: adminUserId,
+        senderType: "admin",
+        message,
+      })
+      .returning();
+
+    await db
+      .update(supportTickets)
+      .set({ updatedAt: new Date() })
+      .where(eq(supportTickets.ticketId, ticketId));
+
+    return newMessage[0];
+  }
+
+  // Update the status of a support ticket
+  async updateTicketStatus(ticketId: string, status: string) {
+    const result = await db
+      .update(supportTickets)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(supportTickets.ticketId, ticketId))
       .returning();
 
     return result[0] ?? null;

@@ -56,12 +56,73 @@ export class AdminController {
         isActive,
         adminUserId,
       );
+      res.status(200).json({
+        success: true,
+        message: "Shop status updated successfully!",
+        data: shop,
+      });
+    } catch (error: any) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  // Get support tickets with optional status filter
+  async getSupportTickets(req: Request, res: Response): Promise<void> {
+    try {
+      const status = req.query.status as string | undefined;
+      const tickets = await adminService.getSupportTickets(status);
+      res.status(200).json({ success: true, data: tickets });
+    } catch (error: any) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  // Get a specific support ticket by its ID
+  async getSupportTicketById(req: Request, res: Response): Promise<void> {
+    try {
+      const { ticketId } = req.params;
+      const ticket = await adminService.getSupportTicketById(ticketId);
+      res.status(200).json({ success: true, data: ticket });
+    } catch (error: any) {
+      res.status(404).json({ success: false, message: error.message });
+    }
+  }
+
+  // Add a message to a support ticket as an admin
+  async addAdminMessage(req: Request, res: Response): Promise<void> {
+    try {
+      const { ticketId } = req.params;
+      const { message } = req.body;
+      const adminUserId = req.user!.userId;
+      const result = await adminService.addAdminMessage(
+        ticketId,
+        adminUserId,
+        message,
+      );
+      res
+        .status(201)
+        .json({
+          success: true,
+          message: "Reply added successfully!",
+          data: result,
+        });
+    } catch (error: any) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  // Update the status of a support ticket
+  async updateTicketStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const { ticketId } = req.params;
+      const { status } = req.body;
+      const ticket = await adminService.updateTicketStatus(ticketId, status);
       res
         .status(200)
         .json({
           success: true,
-          message: "Shop status updated successfully!",
-          data: shop,
+          message: "Ticket status updated!",
+          data: ticket,
         });
     } catch (error: any) {
       res.status(400).json({ success: false, message: error.message });
