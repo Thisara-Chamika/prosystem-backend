@@ -123,7 +123,7 @@ export class AdminRepository {
   }
 
   // Get a support ticket by its ID, including its messages
-  async getSupportTicketById(ticketId: string) {
+    async getSupportTicketById(ticketId: string) {
     const ticket = await db
       .select({
         ticketId: supportTickets.ticketId,
@@ -148,7 +148,23 @@ export class AdminRepository {
       .where(eq(supportTicketMessages.ticketId, ticketId))
       .orderBy(asc(supportTicketMessages.createdAt));
 
-    return { ...ticket[0], messages };
+    const shopSenderIds = [...new Set(messages.filter((m) => m.senderType === 'shop').map((m) => m.senderId))];
+
+    const senderRows = shopSenderIds.length > 0
+      ? await db
+          .select({ userId: users.userId, firstName: users.firstName, lastName: users.lastName })
+          .from(users)
+          .where(inArray(users.userId, shopSenderIds))
+      : [];
+
+    const nameById = new Map(senderRows.map((u) => [u.userId, `${u.firstName} ${u.lastName}`]));
+
+    const enrichedMessages = messages.map((m) => ({
+      ...m,
+      senderName: m.senderType === 'admin' ? 'ProSystem Support' : nameById.get(m.senderId) ?? 'Unknown',
+    }));
+
+    return { ...ticket[0], messages: enrichedMessages };
   }
 
   // Add a message to a support ticket as an admin

@@ -1,6 +1,7 @@
 import { db } from '../../config/database';
 import { supportTickets, supportTicketMessages } from '../../db/schema/support-tickets';
-import { eq, and, asc, desc } from 'drizzle-orm';
+import { eq, and, asc, desc, inArray } from 'drizzle-orm';
+import { users } from '../../db/schema/users';
 
 export class SupportTicketsRepository {
 
@@ -32,7 +33,7 @@ export class SupportTicketsRepository {
       .orderBy(desc(supportTickets.createdAt));
   }
 
-  async getTicketById(shopId: string, ticketId: string) {
+    async getTicketById(shopId: string, ticketId: string) {
     const ticket = await db
       .select()
       .from(supportTickets)
@@ -47,7 +48,23 @@ export class SupportTicketsRepository {
       .where(eq(supportTicketMessages.ticketId, ticketId))
       .orderBy(asc(supportTicketMessages.createdAt));
 
-    return { ...ticket[0], messages };
+    const shopSenderIds = [...new Set(messages.filter((m) => m.senderType === 'shop').map((m) => m.senderId))];
+
+    const senderRows = shopSenderIds.length > 0
+      ? await db
+          .select({ userId: users.userId, firstName: users.firstName, lastName: users.lastName })
+          .from(users)
+          .where(inArray(users.userId, shopSenderIds))
+      : [];
+
+    const nameById = new Map(senderRows.map((u) => [u.userId, `${u.firstName} ${u.lastName}`]));
+
+    const enrichedMessages = messages.map((m) => ({
+      ...m,
+      senderName: m.senderType === 'admin' ? 'ProSystem Support' : nameById.get(m.senderId) ?? 'Unknown',
+    }));
+
+    return { ...ticket[0], messages: enrichedMessages };
   }
 
   async addMessage(shopId: string, ticketId: string, senderId: string, message: string) {
