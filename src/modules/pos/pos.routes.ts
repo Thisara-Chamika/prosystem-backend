@@ -2,12 +2,14 @@ import { Router } from 'express';
 import { PosController } from './pos.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { authorize } from '../../middlewares/auth.middleware';
+import { setRlsContext } from '../../middlewares/rls.middleware';
 
 const router = Router();
 const posController = new PosController();
 
-// All routes require authentication
+// Middleware to authenticate and set RLS context for all POS routes
 router.use(authenticate);
+router.use(setRlsContext);
 
 // Get all transactions
 router.get(

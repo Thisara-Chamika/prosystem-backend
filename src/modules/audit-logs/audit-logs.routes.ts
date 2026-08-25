@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import { AuditLogsController } from './audit-logs.controller';
 import { authenticate, authorize } from '../../middlewares/auth.middleware';
+import { setRlsContext } from '../../middlewares/rls.middleware';
 
 const router = Router();
 const auditLogsController = new AuditLogsController();
 
+// Middleware to authenticate, set RLS context, and authorize shop owners for all audit log routes
 router.use(authenticate);
+router.use(setRlsContext);
 router.use(authorize('shop_owner'));
 
 // GET /api/audit-logs/summary ← must be before /:id routes!

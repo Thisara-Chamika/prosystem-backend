@@ -6,7 +6,6 @@ import authRoutes from "./modules/auth/auth.routes";
 import productsRoutes from "./modules/products/products.routes";
 import posRoutes from "./modules/pos/pos.routes";
 import customersRoutes from "./modules/customers/customers.routes";
-import { setRlsContext } from "./middlewares/rls.middleware";
 import shopsRoutes from "./modules/shops/shops.routes";
 import staffRoutes from "./modules/staff/staff.routes";
 import returnsRoutes from "./modules/returns/returns.routes";
@@ -55,10 +54,6 @@ app.use(
     credentials: true,
   }),
 );
-
-// ── RLS Middleware ────────────────────────────────
-// Runs after auth middleware sets req.user
-app.use(setRlsContext);
 
 // ── Routes ────────────────────────────────────────
 app.use("/api/auth", authRoutes);

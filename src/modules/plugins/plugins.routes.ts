@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import { PluginsController } from './plugins.controller';
 import { authenticate, authorize } from '../../middlewares/auth.middleware';
+import { setRlsContext } from '../../middlewares/rls.middleware';
 
 const router = Router();
 const pluginsController = new PluginsController();
 
+// Middleware to authenticate and set RLS context for all plugin routes
 router.use(authenticate);
+router.use(setRlsContext);
 
 // GET /api/plugins — list all with install status
 router.get(

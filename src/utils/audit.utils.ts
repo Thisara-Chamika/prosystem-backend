@@ -1,4 +1,5 @@
 import { db } from '../config/database';
+import { dbBypass } from '../config/database-bypass';
 import { auditLogs } from '../db/schema/audit-logs';
 import { AuditActionType } from '../enums/audit-actions.enum';
 
@@ -10,9 +11,11 @@ export const createAuditLog = async (params: {
   entityId?: string;
   details?: Record<string, any>;
   ipAddress?: string;
+  useBypass?: boolean;
 }) => {
   try {
-    await db.insert(auditLogs).values({
+    const connection = params.useBypass ? dbBypass : db;
+    await connection.insert(auditLogs).values({
       shopId: params.shopId,
       userId: params.userId,
       action: params.action,
@@ -22,7 +25,6 @@ export const createAuditLog = async (params: {
       ipAddress: params.ipAddress,
     });
   } catch (error) {
-    // Never let audit log failure break the main flow!
     console.error('Audit log failed:', error);
   }
 };

@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import { ShopsController } from './shops.controller';
 import { authenticate, authorize } from '../../middlewares/auth.middleware';
+import { setRlsContext } from '../../middlewares/rls.middleware';
 
 const router = Router();
 const shopsController = new ShopsController();
 
-// All routes require authentication
+// Middleware to authenticate and set RLS context for all shop routes
 router.use(authenticate);
+router.use(setRlsContext);
 
 // ── GET routes ────────────────────────────────────
 // Get current shop details

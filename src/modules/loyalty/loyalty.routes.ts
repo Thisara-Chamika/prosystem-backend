@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import { LoyaltyController } from './loyalty.controller';
 import { authenticate, authorize } from '../../middlewares/auth.middleware';
+import { setRlsContext } from '../../middlewares/rls.middleware';
 
 const router = Router();
 const loyaltyController = new LoyaltyController();
 
+// Middleware to authenticate and set RLS context for all loyalty routes
 router.use(authenticate);
+router.use(setRlsContext);
 
 // ── Settings ──────────────────────────────────────
 // GET /api/loyalty/settings

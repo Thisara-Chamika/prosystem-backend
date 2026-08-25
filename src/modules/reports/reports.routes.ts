@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { ReportsController } from "./reports.controller";
 import { authenticate, authorize } from "../../middlewares/auth.middleware";
+import { setRlsContext } from "../../middlewares/rls.middleware";
 
 const router = Router();
 const reportsController = new ReportsController();
 
-// All routes require authentication + owner/manager only
+// Middleware to authenticate, set RLS context, and authorize for all report routes
 router.use(authenticate);
+router.use(setRlsContext);
 router.use(authorize("shop_owner", "shop_manager"));
 
 // GET /api/reports/summary

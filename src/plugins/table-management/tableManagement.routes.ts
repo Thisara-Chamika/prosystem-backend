@@ -3,10 +3,13 @@ import { tableController } from "./controllers/TableController";
 import { authenticate, authorize } from "../../middlewares/auth.middleware";
 import { requirePlugin } from "../../middlewares/plugin.middleware";
 import { orderController } from "./controllers/OrderController";
+import { setRlsContext } from "../../middlewares/rls.middleware";
 
 const router = Router();
 
+// Middleware to authenticate, set RLS context, and require the table-management plugin for all table management routes
 router.use(authenticate);
+router.use(setRlsContext);
 router.use(requirePlugin("table-management"));
 
 // Table routes
