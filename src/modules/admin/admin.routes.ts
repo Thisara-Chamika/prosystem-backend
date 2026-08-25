@@ -12,5 +12,7 @@ router.use(requireSuperAdmin);
 router.use(setRlsContext);
 
 router.get('/metrics', adminController.getMetrics.bind(adminController));
+router.get('/shops', adminController.getShops.bind(adminController));
+router.put('/shops/:shopId/status', adminController.updateShopStatus.bind(adminController));
 
 export default router;
