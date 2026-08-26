@@ -21,6 +21,8 @@ import paymentsRoutes from './modules/payments/payments.routes';
 import stripeWebhookRoutes from './modules/payments/webhook.routes';
 import tableManagementRoutes from "./plugins/table-management/tableManagement.routes";
 import kitchenDisplayRoutes from "./plugins/kitchen-display/kitchenDisplay.routes";
+import adminRoutes from "./modules/admin/admin.routes";
+import supportTicketsRoutes from "./modules/support-tickets/support-tickets.routes";
 
 // Load environment variables
 dotenv.config();
@@ -74,6 +76,8 @@ app.use("/api/loyalty", loyaltyRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use("/api/plugins/table-management", tableManagementRoutes);
 app.use("/api/plugins/kitchen-display", kitchenDisplayRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/support-tickets", supportTicketsRoutes);
 // ─── Health Check Route ───────────────────────
 app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({
